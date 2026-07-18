@@ -6,7 +6,7 @@ import { HealthRing, MetricCard, SyncBadge } from "@arta/design-system";
 import { computeHealthScore, aggregateDayInputs } from "@arta/core";
 import { db, startOfTodayIso } from "@/lib/db";
 import { getSupabase, getPrimaryProfile } from "@/lib/supabase";
-import { cacheProfile, startSyncLoop } from "@/lib/sync";
+import { cacheProfile, pullAll, startSyncLoop } from "@/lib/sync";
 import { QuickLogSheet } from "@/components/QuickLogSheet";
 import { AppNav } from "@/components/AppNav";
 
@@ -37,6 +37,7 @@ export default function Dashboard() {
       const profile = await getPrimaryProfile();
       if (!profile?.onboarded_at) { router.replace("/onboarding"); return; }
       await cacheProfile(profile);
+      void pullAll(); // perangkat baru / reinstall: tarik riwayat dari server
     });
   }, [router]);
 
