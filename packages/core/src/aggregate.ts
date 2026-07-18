@@ -1,4 +1,5 @@
-import type { DayInputs } from "./scoring/health-score";
+// ekstensi .ts eksplisit: file ini ikut di-bundle Edge Function (Deno) — lihat supabase/functions/daily-score
+import type { DayInputs } from "./scoring/health-score.ts";
 
 /**
  * Agregasi log satu hari → DayInputs untuk scoring engine.

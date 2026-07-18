@@ -12,6 +12,7 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
     "allowJs": true,
     "incremental": true,
     "isolatedModules": true,
