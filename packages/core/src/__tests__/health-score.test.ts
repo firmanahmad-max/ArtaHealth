@@ -29,6 +29,11 @@ describe("sub-skor", () => {
     expect(activitySubScore(8000, 8000, 0)).toBe(60);        // 0.6*100 + 0.4*0
     expect(activitySubScore(8000, 8000, 22)).toBe(100);
   });
+  it("aktivitas hanya durasi (tanpa langkah) dinilai dari durasi saja", () => {
+    expect(activitySubScore(undefined, 8000, 22)).toBe(100);
+    expect(activitySubScore(undefined, 8000, 11)).toBe(50);
+    expect(activitySubScore(undefined, 8000)).toBe(0);
+  });
   it("mood dan habit", () => {
     expect(moodSubScore(4)).toBe(80);
     expect(habitSubScore(3, 5)).toBe(60);
