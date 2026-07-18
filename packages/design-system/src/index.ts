@@ -12,3 +12,5 @@ export { EmptyState } from "./EmptyState";
 export type { EmptyStateProps } from "./EmptyState";
 export { SyncBadge } from "./SyncBadge";
 export type { SyncBadgeProps } from "./SyncBadge";
+export { TimelineItem } from "./TimelineItem";
+export type { TimelineItemProps } from "./TimelineItem";

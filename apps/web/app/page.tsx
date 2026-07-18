@@ -2,12 +2,13 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { HealthRing, MetricCard, BottomNav, SyncBadge } from "@arta/design-system";
+import { HealthRing, MetricCard, SyncBadge } from "@arta/design-system";
 import { computeHealthScore, aggregateDayInputs } from "@arta/core";
 import { db, startOfTodayIso } from "@/lib/db";
 import { getSupabase, getPrimaryProfile } from "@/lib/supabase";
 import { cacheProfile, startSyncLoop } from "@/lib/sync";
 import { QuickLogSheet } from "@/components/QuickLogSheet";
+import { AppNav } from "@/components/AppNav";
 
 const MOOD_EMOJI: Record<number, string> = { 1: "😞", 2: "😕", 3: "😐", 4: "🙂", 5: "😄" };
 
@@ -180,17 +181,7 @@ export default function Dashboard() {
 
       <QuickLogSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
 
-      <BottomNav
-        activeKey="home"
-        onSelect={(key) => { if (key === "log") setSheetOpen(true); }} // Timeline/Chat/Profil menyusul
-        items={[
-          { key: "home", label: "Beranda", icon: "🏠" },
-          { key: "timeline", label: "Timeline", icon: "📈" },
-          { key: "log", label: "Catat", icon: "＋", fab: true },
-          { key: "chat", label: "Chat", icon: "💬" },
-          { key: "profile", label: "Profil", icon: "👤" },
-        ]}
-      />
+      <AppNav activeKey="home" onLog={() => setSheetOpen(true)} />
     </>
   );
 }
