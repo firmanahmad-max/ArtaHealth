@@ -9,3 +9,5 @@ coverage/
 .vercel
 supabase/.temp
 *.tsbuildinfo
+test-results/
+playwright-report/
