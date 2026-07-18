@@ -13,7 +13,8 @@ export interface DayInputs {
   };
   hydration?: { intakeMl: number; targetMl: number };
   activity?: {
-    steps: number;
+    /** boleh kosong bila user hanya mencatat durasi olahraga */
+    steps?: number;
     stepTarget: number;
     /** menit olahraga terstruktur; jika ada, dihitung blend 60/40 (target 22 mnt/hari ≈ WHO 150/mgg) */
     exerciseMin?: number;
@@ -63,10 +64,12 @@ export function hydrationSubScore(intakeMl: number, targetMl: number): number {
   return clamp((intakeMl / targetMl) * 100);
 }
 
-export function activitySubScore(steps: number, stepTarget: number, exerciseMin?: number): number {
-  const stepScore = stepTarget > 0 ? clamp((steps / stepTarget) * 100) : 0;
-  if (exerciseMin === undefined) return stepScore;
-  const exScore = clamp((exerciseMin / 22) * 100);
+export function activitySubScore(steps: number | undefined, stepTarget: number, exerciseMin?: number): number {
+  const stepScore = steps !== undefined ? (stepTarget > 0 ? clamp((steps / stepTarget) * 100) : 0) : undefined;
+  const exScore = exerciseMin !== undefined ? clamp((exerciseMin / 22) * 100) : undefined;
+  // hanya satu jenis data → pakai itu saja (tidak menghukum data yang tak dicatat)
+  if (stepScore === undefined) return exScore ?? 0;
+  if (exScore === undefined) return stepScore;
   return clamp(0.6 * stepScore + 0.4 * exScore);
 }
 
@@ -81,7 +84,7 @@ export function computeHealthScore(inputs: DayInputs): HealthScoreResult {
   const raw: ScoreBreakdown["raw"] = {};
   if (inputs.sleep) raw.sleep = sleepSubScore(inputs.sleep.durationMin, inputs.sleep.bedtimeDeviationMin);
   if (inputs.hydration) raw.hydration = hydrationSubScore(inputs.hydration.intakeMl, inputs.hydration.targetMl);
-  if (inputs.activity)
+  if (inputs.activity && (inputs.activity.steps !== undefined || inputs.activity.exerciseMin !== undefined))
     raw.activity = activitySubScore(inputs.activity.steps, inputs.activity.stepTarget, inputs.activity.exerciseMin);
   if (inputs.mood !== undefined) raw.mood = moodSubScore(inputs.mood);
   if (inputs.habits) raw.habit = habitSubScore(inputs.habits.completed, inputs.habits.total);
