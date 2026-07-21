@@ -1,7 +1,8 @@
 {
   "version": "4",
   "specifiers": {
-    "npm:@supabase/supabase-js@2": "2.110.7"
+    "npm:@supabase/supabase-js@2": "2.110.7",
+    "npm:zod@^3.25.76": "3.25.76"
   },
   "npm": {
     "@supabase/auth-js@2.110.7": {
@@ -54,6 +55,14 @@
     },
     "tslib@2.8.1": {
       "integrity": "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w=="
+    },
+    "zod@3.25.76": {
+      "integrity": "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="
     }
+  },
+  "workspace": {
+    "dependencies": [
+      "npm:zod@^3.25.76"
+    ]
   }
 }

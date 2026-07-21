@@ -27,3 +27,8 @@ jobs:
       - if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm --filter @arta/web exec playwright install chromium
       - run: pnpm --filter @arta/web test:e2e
+      # Edge Function di-typecheck dengan Deno (tsc tidak mengenali runtime-nya)
+      - uses: denoland/setup-deno@v2
+        with: { deno-version: v2.x }
+      - run: deno check ai-gateway/index.ts daily-score/index.ts
+        working-directory: supabase/functions
