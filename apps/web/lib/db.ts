@@ -35,11 +35,35 @@ export interface LocalWeightLog {
   loggedAt: string; deletedAt: string | null;
 }
 
+export interface LocalHabit {
+  /** uuid dibuat client — sekaligus kunci idempoten sync (upsert onConflict id) */
+  id: string;
+  profileId: string;
+  name: string;
+  icon?: string;
+  /** ISO weekday 1=Sen..7=Min */
+  schedule: { days: number[] };
+  isActive: boolean;
+  createdAt: string;
+  deletedAt: string | null;
+}
+export interface LocalHabitCompletion {
+  /** stabil per (habit, tanggal): `${habitId}:${date}` — toggle memakai baris yang sama */
+  clientId: string;
+  profileId: string;
+  habitId: string;
+  /** "YYYY-MM-DD" tanggal lokal */
+  date: string;
+  value: number;
+  deletedAt: string | null;
+}
+
 export type LogTableName = "hydration_logs" | "sleep_logs" | "activity_logs" | "mood_logs" | "weight_logs";
+export type SyncTableName = LogTableName | "habits" | "habit_completions";
 
 export interface OutboxEntry {
   id?: number;
-  table: LogTableName;
+  table: SyncTableName;
   clientId: string;
   attempts: number;
   queuedAt: string;
@@ -53,6 +77,8 @@ type ArtaDB = Dexie & {
   activity_logs: EntityTable<LocalActivityLog, "clientId">;
   mood_logs: EntityTable<LocalMoodLog, "clientId">;
   weight_logs: EntityTable<LocalWeightLog, "clientId">;
+  habits: EntityTable<LocalHabit, "id">;
+  habit_completions: EntityTable<LocalHabitCompletion, "clientId">;
   outbox: EntityTable<OutboxEntry, "id">;
   meta: EntityTable<MetaEntry, "key">;
 };
@@ -67,6 +93,11 @@ db.version(1).stores({
   weight_logs: "clientId, loggedAt",
   outbox: "++id, table",
   meta: "key",
+});
+// v2 (Sprint 5-6): habit engine — tabel lama tidak berubah, Dexie migrasi otomatis
+db.version(2).stores({
+  habits: "id, isActive",
+  habit_completions: "clientId, date, habitId",
 });
 
 /** Awal hari lokal perangkat (ISO) — batas "hari ini" untuk skor & dashboard. */

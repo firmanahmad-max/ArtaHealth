@@ -72,7 +72,8 @@ Deno.serve(async (req) => {
         inRange("mood_logs", "logged_at", "mood, logged_at"),
         supabase.from("habits").select("id, schedule").eq("profile_id", profile.id)
           .eq("is_active", true).is("deleted_at", null),
-        supabase.from("habit_completions").select("habit_id").eq("profile_id", profile.id).eq("date", dateKey),
+        supabase.from("habit_completions").select("habit_id").eq("profile_id", profile.id)
+          .eq("date", dateKey).is("deleted_at", null),
       ]);
       const queryErr = [hydration, sleep, activity, mood, habits, completions].find((r) => r.error);
       if (queryErr?.error) throw new Error(queryErr.error.message);

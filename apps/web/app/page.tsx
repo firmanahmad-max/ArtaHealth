@@ -9,6 +9,9 @@ import { getSupabase, getPrimaryProfile } from "@/lib/supabase";
 import { cacheProfile, pullAll, startSyncLoop } from "@/lib/sync";
 import { QuickLogSheet } from "@/components/QuickLogSheet";
 import { AppNav } from "@/components/AppNav";
+import { HabitCard } from "@/components/HabitCard";
+import { isScheduledOn, isoWeekdayOf } from "@arta/core";
+import { todayKey } from "@/lib/habits";
 
 const MOOD_EMOJI: Record<number, string> = { 1: "😞", 2: "😕", 3: "😐", 4: "🙂", 5: "😄" };
 
@@ -69,6 +72,11 @@ export default function Dashboard() {
     () => db.mood_logs.where("loggedAt").aboveOrEqual(today).filter((l) => !l.deletedAt).toArray(),
     [today],
   );
+  const habits = useLiveQuery(() => db.habits.filter((h) => h.isActive && !h.deletedAt).toArray(), []);
+  const habitDone = useLiveQuery(async () => {
+    const rows = await db.habit_completions.where("date").equals(todayKey()).toArray();
+    return new Set(rows.filter((c) => !c.deletedAt).map((c) => c.habitId));
+  }, []);
   const pendingTables = useLiveQuery(async () => {
     const entries = await db.outbox.toArray();
     return new Set(entries.map((e) => e.table));
@@ -85,6 +93,11 @@ export default function Dashboard() {
       sleep: sleep ?? [],
       activity: activity ?? [],
       mood: (mood ?? []).map((m) => ({ mood: m.mood, loggedAt: m.loggedAt })),
+      habits: (() => {
+        const scheduled = (habits ?? []).filter((h) => isScheduledOn(h.schedule, isoWeekdayOf(todayKey())));
+        if (scheduled.length === 0) return undefined; // tanpa habit → bobot diredistribusi
+        return { completed: scheduled.filter((h) => habitDone?.has(h.id)).length, total: scheduled.length };
+      })(),
     },
     targets ?? { hydrationMl: 2500, steps: 8000 },
   );
@@ -178,6 +191,8 @@ export default function Dashboard() {
             onLog={() => setSheetOpen(true)}
           />
         </div>
+
+        <HabitCard />
       </main>
 
       <QuickLogSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
