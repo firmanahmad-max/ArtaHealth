@@ -51,3 +51,57 @@ const serwist = new Serwist({
 
 // skipWaiting + clientsClaim di atas sudah memasang perilaku aktivasi langsung
 serwist.addEventListeners();
+
+/**
+ * Push notification (CONTEXT §6). Isi pesan SELALU datang dari server yang sudah
+ * menjalankan mesin keputusan deterministik (packages/core/src/notifications.ts) —
+ * SW tidak pernah mengarang teks generik sendiri. Payload tanpa judul/isi diabaikan
+ * supaya tidak pernah muncul notifikasi kosong.
+ */
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+  let payload: { title?: string; body?: string; url?: string; kind?: string };
+  try {
+    payload = event.data.json();
+  } catch {
+    return;
+  }
+  if (!payload.title || !payload.body) return;
+
+  event.waitUntil(
+    (async () => {
+      // beri tahu tab yang terbuka lebih dulu — perlakuan foreground tidak boleh
+      // bergantung pada berhasilnya showNotification
+      const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of clients) client.postMessage({ type: "push-shown", ...payload });
+
+      await self.registration.showNotification(payload.title!, {
+        body: payload.body,
+        icon: "/icons/icon-192.png",
+        badge: "/icons/icon-192.png",
+        tag: payload.kind ?? "arta-reminder", // satu kategori tidak menumpuk
+        data: { url: payload.url ?? "/" },
+        lang: "id",
+      });
+    })(),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = (event.notification.data as { url?: string })?.url ?? "/";
+  event.waitUntil(
+    (async () => {
+      const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      // fokuskan tab yang sudah terbuka daripada menumpuk jendela baru
+      for (const client of clients) {
+        if ("focus" in client) {
+          await client.focus();
+          if ("navigate" in client) await client.navigate(target);
+          return;
+        }
+      }
+      await self.clients.openWindow(target);
+    })(),
+  );
+});

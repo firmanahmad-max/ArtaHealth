@@ -11,6 +11,7 @@ import { QuickLogSheet } from "@/components/QuickLogSheet";
 import { AppNav } from "@/components/AppNav";
 import { HabitCard } from "@/components/HabitCard";
 import { InsightCard } from "@/components/InsightCard";
+import { PushToggle } from "@/components/PushToggle";
 import { isScheduledOn, isoWeekdayOf } from "@arta/core";
 import { todayKey } from "@/lib/habits";
 
@@ -196,6 +197,8 @@ export default function Dashboard() {
         <InsightCard />
 
         <HabitCard />
+
+        <PushToggle />
       </main>
 
       <QuickLogSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
