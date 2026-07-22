@@ -40,8 +40,8 @@ test("undo pada toast membatalkan log air", async ({ page, context }) => {
 });
 
 test("mood satu ketukan tercatat offline dan muncul di Timeline", async ({ page, context }) => {
-  // muat chunk kedua route saat masih online — navigasi offline ke route yang belum
-  // pernah dimuat baru bisa setelah precaching PWA (Sprint 5-6)
+  // Suite ini berjalan di `next dev` (service worker mati), jadi chunk route kedua
+  // dimuat lebih dulu saat online. Perilaku PWA sesungguhnya diuji di e2e-pwa/.
   await page.goto("/timeline");
   await page.getByRole("button", { name: "Beranda" }).click();
   await expect(page.getByRole("heading", { name: /Hai/ })).toBeVisible();
