@@ -30,6 +30,10 @@ Legenda: ⬜ belum · ✅ selesai · 🔑 butuh kredensial · ⚠️ mudah terle
 - ⬜ Review & merge [PR #3](https://github.com/firmanahmad-max/ArtaHealth/pull/3) (Sprint 5–6) — **merge #2 dulu** agar diff bersih
 - ⚠️ ⬜ Setelah merge, jalankan CI di `main`: `gh workflow run CI --ref main` (event trigger push masih mati — lihat catatan di bawah)
 
+> **Langkah 2–6 punya panduan rinci terpisah:** [`supabase-setup.md`](supabase-setup.md)
+> — perintah CLI lengkap, konfigurasi auth, matriks env per fungsi, query
+> verifikasi cron, dan troubleshooting. Bagian di bawah adalah ringkasan centang.
+
 ## 2. Database & migrasi
 
 - ⬜ `supabase link --project-ref <ref>`
