@@ -50,6 +50,21 @@ test("reload penuh saat offline tetap memuat aplikasi, bukan halaman error brows
   await expect(page.getByText("Kebiasaan hari ini")).toBeVisible();
 });
 
+test("catatan offline muncul di Timeline lewat navigasi antar halaman", async ({ page, context }) => {
+  await waitForServiceWorker(page);
+  await context.setOffline(true);
+
+  await page.getByRole("button", { name: "Catat", exact: true }).click();
+  await page.getByRole("button", { name: "🙂 Mood" }).click();
+  await page.getByRole("button", { name: "Mood 4 dari 5" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Mood hari ini tercatat" })).toBeVisible();
+
+  // navigasi client-side saat offline — inilah yang dimungkinkan service worker
+  await page.getByRole("button", { name: "Timeline" }).click();
+  await expect(page.getByRole("heading", { name: "Hari ini" })).toBeVisible();
+  await expect(page.getByText("Mood 4/5")).toBeVisible();
+});
+
 test("route yang tidak di-precache jatuh ke halaman offline yang menenangkan", async ({ page, context }) => {
   await waitForServiceWorker(page);
   await context.setOffline(true);
