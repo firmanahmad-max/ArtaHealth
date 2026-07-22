@@ -61,7 +61,9 @@ test("catatan offline muncul di Timeline lewat navigasi antar halaman", async ({
 
   // navigasi client-side saat offline — inilah yang dimungkinkan service worker
   await page.getByRole("button", { name: "Timeline" }).click();
-  await expect(page.getByRole("heading", { name: "Hari ini" })).toBeVisible();
+  // exact: judul kartu Beranda ("Kebiasaan hari ini", "Insight hari ini") juga
+  // mengandung "hari ini" dan akan ikut cocok saat transisi halaman belum selesai
+  await expect(page.getByRole("heading", { name: "Hari ini", exact: true })).toBeVisible();
   await expect(page.getByText("Mood 4/5")).toBeVisible();
 });
 
