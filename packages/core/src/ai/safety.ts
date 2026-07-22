@@ -55,14 +55,18 @@ export function detectRedFlags(text: string): RedFlagHit[] {
   return hits;
 }
 
-/** Pesan darurat — tenang, langkah konkret, nomor darurat Indonesia. */
+/**
+ * Pesan darurat — tenang, langkah konkret, nomor darurat Indonesia.
+ * Teks polos tanpa markdown: UI merender apa adanya, dan sintaks mentah
+ * ("**Hubungi 119**") justru mengganggu keterbacaan saat panik.
+ */
 export function redFlagResponse(hits: RedFlagHit[]): string {
   const selfHarm = hits.some((h) => h.category === "self_harm");
   if (selfHarm) {
     return [
       "Terima kasih sudah bercerita. Yang Anda rasakan penting dan Anda tidak sendirian.",
       "",
-      "Bila ada dorongan menyakiti diri, hubungi **119 ext. 8** (layanan kesehatan jiwa Kemenkes) sekarang, atau ceritakan kepada orang yang Anda percaya dan tetaplah bersama mereka.",
+      "Bila ada dorongan menyakiti diri, hubungi 119 ext. 8 (layanan kesehatan jiwa Kemenkes) sekarang, atau ceritakan kepada orang yang Anda percaya dan tetaplah bersama mereka.",
       "Bila keadaan mendesak, ke IGD rumah sakit terdekat.",
       "",
       "Saya di sini untuk hal-hal kebiasaan harian, tetapi untuk yang satu ini Anda layak didampingi manusia yang terlatih.",
@@ -71,7 +75,7 @@ export function redFlagResponse(hits: RedFlagHit[]): string {
   return [
     "Gejala yang Anda sebutkan perlu penanganan medis segera — ini bukan sesuatu yang aman dianalisis aplikasi.",
     "",
-    "**Hubungi 119** (Ambulans Gawat Darurat) atau pergi ke IGD terdekat sekarang.",
+    "Hubungi 119 (Ambulans Gawat Darurat) atau pergi ke IGD terdekat sekarang.",
     "Bila memungkinkan, jangan berkendara sendiri dan mintalah seseorang menemani Anda.",
     "",
     "Saya berhenti menganalisis di sini demi keselamatan Anda.",

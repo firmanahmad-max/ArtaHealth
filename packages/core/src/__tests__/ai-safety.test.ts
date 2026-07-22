@@ -33,6 +33,14 @@ describe("red-flag detector (input guard)", () => {
     expect(res).toMatch(/berhenti menganalisis/i);
   });
 
+  it("pesan darurat bebas markdown — UI merender teks apa adanya", () => {
+    for (const input of ["nyeri dada", "ingin mengakhiri hidup"]) {
+      const res = redFlagResponse(detectRedFlags(input));
+      expect(res).not.toContain("**");
+      expect(res).not.toMatch(/\[.+\]\(.+\)/);
+    }
+  });
+
   it("pertanyaan biasa TIDAK memicu red flag (hindari alarm palsu berlebihan)", () => {
     expect(detectRedFlags("bagaimana cara tidur lebih nyenyak?")).toHaveLength(0);
     expect(detectRedFlags("target minum saya berapa ya")).toHaveLength(0);

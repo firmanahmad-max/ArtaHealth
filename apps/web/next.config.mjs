@@ -10,7 +10,7 @@ import withSerwistInit from "@serwist/next";
 // halaman yang belum pernah dibuka (dan fallback /offline itu sendiri) tidak
 // tersedia offline. Semua route V1 statis, jadi shell-nya aman di-precache.
 const revision = `${Date.now()}`;
-const APP_SHELL = ["/", "/timeline", "/offline"].map((url) => ({ url, revision }));
+const APP_SHELL = ["/", "/timeline", "/chat", "/offline"].map((url) => ({ url, revision }));
 
 const withSerwist = withSerwistInit({
   swSrc: "app/sw.ts",

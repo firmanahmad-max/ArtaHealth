@@ -10,6 +10,7 @@ import { cacheProfile, pullAll, startSyncLoop } from "@/lib/sync";
 import { QuickLogSheet } from "@/components/QuickLogSheet";
 import { AppNav } from "@/components/AppNav";
 import { HabitCard } from "@/components/HabitCard";
+import { InsightCard } from "@/components/InsightCard";
 import { isScheduledOn, isoWeekdayOf } from "@arta/core";
 import { todayKey } from "@/lib/habits";
 
@@ -191,6 +192,8 @@ export default function Dashboard() {
             onLog={() => setSheetOpen(true)}
           />
         </div>
+
+        <InsightCard />
 
         <HabitCard />
       </main>

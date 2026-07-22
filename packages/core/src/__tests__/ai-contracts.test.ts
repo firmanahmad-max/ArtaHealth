@@ -39,6 +39,14 @@ describe("fallback deterministik", () => {
     expect(isUnsafeOutput(out.summary + out.motivation + out.targets.join(" "))).toBe(false);
   });
 
+  it("angka memakai format Indonesia (koma desimal, titik ribuan)", () => {
+    const out = fallbackDailyInsight(ctx);
+    const teks = out.targets.join(" ");
+    expect(teks).toContain("0,7 liter");        // sisa 700 ml
+    expect(teks).toMatch(/1\.800 langkah/);     // sisa langkah pakai pemisah ribuan
+    expect(teks).not.toMatch(/\d\.\d liter/);   // tidak ada titik desimal
+  });
+
   it("memilih focusArea dari parameter terlemah", () => {
     // hidrasi 72%, aktivitas 78%, tidur 83%, habit 60% → habit paling lemah
     expect(fallbackDailyInsight(ctx).focusArea).toBe("habit");

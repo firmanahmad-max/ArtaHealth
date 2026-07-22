@@ -74,7 +74,8 @@ export function fallbackDailyInsight(ctx: InsightContext) {
   if (ctx.hydration) {
     const p = ctx.hydration.pct || pct(ctx.hydration.totalMl, ctx.hydration.targetMl);
     const sisa = Math.max(0, ctx.hydration.targetMl - ctx.hydration.totalMl);
-    if (sisa > 0) targets.push(`Minum ${(sisa / 1000).toFixed(1)} liter air lagi`);
+    // desimal Bahasa Indonesia memakai koma ("2,5 liter" — ui-ux-spec §5)
+    if (sisa > 0) targets.push(`Minum ${(sisa / 1000).toFixed(1).replace(".", ",")} liter air lagi`);
     if (p < worst) { worst = p; focusArea = "hydration"; }
   }
   if (ctx.activity) {
