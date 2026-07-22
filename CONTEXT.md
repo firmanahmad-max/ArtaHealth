@@ -91,6 +91,7 @@ Sprint 5–6: AI Gateway + prompt registry + Safety Guard + Daily Insight + AI C
 | `addendum-ramadan.md` | Mode puasa, kalibrasi skor, imsakiyah (v1.0-RM) |
 | `addendum-sadar-gizi.md` | Scanner label, GGL Budget, rule engine (v1.0-NG) |
 | `master-roadmap.md` | Urutan fase, gerbang keputusan, backlog (v1.0-MR) |
+| `deploy-checklist.md` | Checklist deploy produksi + smoke test + dogfood Fase 1 |
 | `prototypes/*.jsx` | 2 prototipe React (referensi UI & interaksi) |
 | `clinical-refs/` | PDF guideline resmi (diisi saat verifikasi ambang) |
 
