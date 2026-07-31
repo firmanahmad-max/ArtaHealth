@@ -6,3 +6,4 @@ export * from "./timezone";
 export * from "./habits";
 export * from "./ai/index.ts";
 export * from "./notifications.ts";
+export * from "./sentry-scrub.ts";
