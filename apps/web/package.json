@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint || true",
     "typecheck": "tsc --noEmit",
-    "test": "echo 'e2e menyusul (Playwright)' && exit 0"
+    "test": "echo 'unit test di packages/core; e2e: pnpm test:e2e' && exit 0",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@arta/core": "workspace:*",
@@ -23,6 +24,7 @@
     "zustand": "^4.5.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.46.0",
     "@types/node": "^20.14.15",
     "@types/react": "^18.3.3",
     "autoprefixer": "^10.4.19",

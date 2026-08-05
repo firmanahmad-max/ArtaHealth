@@ -3,8 +3,11 @@ import { db, type LogTableName, type LocalHydrationLog, type LocalSleepLog, type
 import { getSupabase, type PrimaryProfile } from "./supabase";
 
 /**
- * Outbox sync engine — push-only (V1): tulisan lokal diteruskan ke Supabase
- * dengan idempotensi unique(profile_id, client_id). Gagal → antre lagi, urutan dijaga.
+ * Sync engine dua arah:
+ * - Push: outbox lokal diteruskan ke Supabase dengan idempotensi
+ *   unique(profile_id, client_id). Gagal → antre lagi, urutan dijaga.
+ * - Pull: inkremental per tabel dengan kursor `updated_at` (migration 0006);
+ *   baris yang masih antre di outbox TIDAK ditimpa (niat lokal menang sampai ter-push).
  */
 
 /** Dipakai saat dev tanpa Supabase / belum login — sync tidak berjalan untuk id ini. */
@@ -88,14 +91,98 @@ export async function flushOutbox(): Promise<void> {
   }
 }
 
+// ===== Pull =====
+
+type ServerRow = Record<string, unknown> & { client_id: string; updated_at: string };
+
+function fromServerRow(table: LogTableName, r: ServerRow): AnyLocalRow {
+  const base = {
+    clientId: r.client_id as string,
+    profileId: r.profile_id as string,
+    deletedAt: (r.deleted_at as string | null) ?? null,
+  };
+  switch (table) {
+    case "hydration_logs":
+      return { ...base, beverage: r.beverage, volumeMl: r.volume_ml, loggedAt: r.logged_at } as LocalHydrationLog;
+    case "sleep_logs":
+      return { ...base, sleepStart: r.sleep_start, sleepEnd: r.sleep_end, quality: r.quality ?? undefined } as LocalSleepLog;
+    case "activity_logs":
+      return {
+        ...base, activityType: r.activity_type,
+        durationMin: r.duration_min ?? undefined, steps: r.steps ?? undefined, loggedAt: r.logged_at,
+      } as LocalActivityLog;
+    case "mood_logs":
+      return { ...base, mood: r.mood, note: r.note ?? undefined, loggedAt: r.logged_at } as LocalMoodLog;
+    case "weight_logs":
+      return { ...base, weightKg: r.weight_kg, loggedAt: r.logged_at } as LocalWeightLog;
+  }
+}
+
+const LOG_TABLES: LogTableName[] = ["hydration_logs", "sleep_logs", "activity_logs", "mood_logs", "weight_logs"];
+const PULL_PAGE = 500;
+let pulling = false;
+
+export async function pullAll(): Promise<void> {
+  if (pulling) return;
+  const supabase = getSupabase();
+  if (!supabase) return;
+  if (typeof navigator !== "undefined" && !navigator.onLine) return;
+  pulling = true;
+  try {
+    const profileId = await getActiveProfileId();
+    if (profileId === LOCAL_PROFILE_ID) return;
+    for (const table of LOG_TABLES) {
+      try {
+        await pullTable(table, profileId);
+      } catch {
+        // tabel gagal → coba lagi di siklus berikutnya; tabel lain tetap ditarik
+      }
+    }
+  } finally {
+    pulling = false;
+  }
+}
+
+async function pullTable(table: LogTableName, profileId: string): Promise<void> {
+  const supabase = getSupabase()!;
+  const cursorKey = `pullCursor:${table}`;
+  let cursor = (await db.meta.get(cursorKey))?.value ?? "1970-01-01T00:00:00Z";
+  for (;;) {
+    const { data, error } = await supabase
+      .from(table)
+      .select("*")
+      .eq("profile_id", profileId)
+      .gt("updated_at", cursor)
+      .order("updated_at", { ascending: true })
+      .limit(PULL_PAGE);
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []) as ServerRow[];
+    if (rows.length === 0) return;
+
+    const pendingIds = new Set(
+      (await db.outbox.where("table").equals(table).toArray()).map((e) => e.clientId),
+    );
+    const localRows = rows.filter((r) => !pendingIds.has(r.client_id)).map((r) => fromServerRow(table, r));
+    // union EntityTable tidak punya signature bulkPut gabungan → cast struktural
+    const target = db[table] as unknown as { bulkPut(items: AnyLocalRow[]): Promise<unknown> };
+    await db.transaction("rw", db[table], db.meta, async () => {
+      await target.bulkPut(localRows);
+      await db.meta.put({ key: cursorKey, value: rows[rows.length - 1]!.updated_at });
+    });
+    if (rows.length < PULL_PAGE) return;
+  }
+}
+
 /** Pasang listener online + interval; kembalikan fungsi cleanup. */
 export function startSyncLoop(): () => void {
-  const onOnline = () => void flushOutbox();
-  window.addEventListener("online", onOnline);
-  const interval = setInterval(onOnline, 30_000);
-  void flushOutbox();
+  const tick = () => {
+    void flushOutbox().then(() => pullAll());
+  };
+  window.addEventListener("online", tick);
+  const interval = setInterval(tick, 30_000);
+  tick();
   return () => {
-    window.removeEventListener("online", onOnline);
+    window.removeEventListener("online", tick);
     clearInterval(interval);
   };
 }

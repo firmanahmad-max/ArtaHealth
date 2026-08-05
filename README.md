@@ -12,7 +12,11 @@ pnpm install
 # 2. Supabase
 supabase init            # sekali saja (folder sudah ada, cukup link)
 supabase link --project-ref <ref-project-anda>
-supabase db push         # menjalankan migrations/0001..0004
+supabase db push         # menjalankan migrations/0001..0005
+supabase functions deploy daily-score   # cron skor harian (lihat catatan di 0005)
+# Sekali per project, via SQL Editor (untuk pg_cron → Edge Function):
+#   select vault.create_secret('https://<ref>.supabase.co', 'project_url');
+#   select vault.create_secret('<service-role-key>', 'service_role_key');
 
 # 3. Env
 cp .env.example apps/web/.env.local   # isi nilai dari dashboard Supabase
