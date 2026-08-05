@@ -1,4 +1,5 @@
 import withSerwistInit from "@serwist/next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 /**
  * PWA (Serwist) — CONTEXT.md §6 Sprint 5–6.
@@ -22,4 +23,18 @@ const withSerwist = withSerwistInit({
 
 const nextConfig = { reactStrictMode: true, transpilePackages: ["@arta/core", "@arta/design-system"] };
 
-export default withSerwist(nextConfig);
+// Sentry membungkus paling luar. Upload source map DIMATIKAN supaya build/CI
+// tidak butuh SENTRY_AUTH_TOKEN; monitoring runtime tetap aktif via DSN saja.
+export default withSentryConfig(withSerwist(nextConfig), {
+  silent: true,
+  disableLogger: true,
+  telemetry: false,
+  sourcemaps: { disable: true },
+  // pangkas bundle: kita tidak memakai Session Replay maupun debug logging
+  bundleSizeOptimizations: {
+    excludeDebugStatements: true,
+    excludeReplayShadowDom: true,
+    excludeReplayIframe: true,
+    excludeReplayWorker: true,
+  },
+});
