@@ -14,3 +14,5 @@ export { SyncBadge } from "./SyncBadge";
 export type { SyncBadgeProps } from "./SyncBadge";
 export { TimelineItem } from "./TimelineItem";
 export type { TimelineItemProps } from "./TimelineItem";
+export { StreakFlame } from "./StreakFlame";
+export type { StreakFlameProps } from "./StreakFlame";

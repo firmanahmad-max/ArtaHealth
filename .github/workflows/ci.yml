@@ -17,5 +17,20 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
-      - run: pnpm --filter @arta/web exec playwright install chromium --with-deps
+      # runner ubuntu-latest sudah membawa library sistem Chromium; --with-deps
+      # (apt-get) menambah ~9 menit per run, jadi cukup unduh browser + cache
+      - uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @arta/web exec playwright install chromium
       - run: pnpm --filter @arta/web test:e2e
+      # PWA hanya nyata di build produksi (SW mati saat next dev)
+      - run: pnpm --filter @arta/web test:e2e:pwa
+      # Edge Function di-typecheck dengan Deno (tsc tidak mengenali runtime-nya)
+      - uses: denoland/setup-deno@v2
+        with: { deno-version: v2.x }
+      - run: deno check ai-gateway/index.ts daily-score/index.ts send-reminders/index.ts
+        working-directory: supabase/functions

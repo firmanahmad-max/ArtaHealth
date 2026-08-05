@@ -11,3 +11,5 @@ supabase/.temp
 *.tsbuildinfo
 test-results/
 playwright-report/
+**/public/sw*.js
+**/public/swe-worker*.js

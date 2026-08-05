@@ -3,3 +3,6 @@ export * from "./schemas";
 export * from "./onboarding";
 export * from "./aggregate";
 export * from "./timezone";
+export * from "./habits";
+export * from "./ai/index.ts";
+export * from "./notifications.ts";

@@ -9,7 +9,8 @@
     "lint": "next lint || true",
     "typecheck": "tsc --noEmit",
     "test": "echo 'unit test di packages/core; e2e: pnpm test:e2e' && exit 0",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:pwa": "playwright test -c playwright.pwa.config.ts"
   },
   "dependencies": {
     "@arta/core": "workspace:*",
@@ -25,10 +26,12 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.46.0",
+    "@serwist/next": "^9.5.11",
     "@types/node": "^20.14.15",
     "@types/react": "^18.3.3",
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.40",
+    "serwist": "^9.5.11",
     "tailwindcss": "^3.4.7",
     "typescript": "^5.5.4"
   }
