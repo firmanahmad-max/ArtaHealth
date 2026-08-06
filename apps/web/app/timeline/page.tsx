@@ -1,5 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
+import { useMounted } from "@/lib/useMounted";
 import { useLiveQuery } from "dexie-react-hooks";
 import { HealthRing, TimelineItem, EmptyState } from "@arta/design-system";
 import { computeHealthScore, aggregateDayInputs } from "@arta/core";
@@ -57,6 +58,7 @@ export default function TimelinePage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [filter, setFilter] = useState<ItemType | "all">("all");
   const syncEnabled = !!getSupabase();
+  const mounted = useMounted(); // gate tanggal (hindari hydration mismatch)
 
   const since = useMemo(() => {
     const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (DAYS_SHOWN - 1));
@@ -141,7 +143,7 @@ export default function TimelinePage() {
           <div>
             <h1 style={{ fontSize: 18, fontWeight: 700 }}>Timeline</h1>
             <p style={{ fontSize: 12, color: "var(--ah-text-tertiary)" }}>
-              {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+              {mounted ? new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : " "}
             </p>
           </div>
           <HealthRing score={todayScore} size={48} strokeWidth={5} showLabel={false} />

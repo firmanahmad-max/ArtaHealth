@@ -14,6 +14,7 @@ import { InsightCard } from "@/components/InsightCard";
 import { PushToggle } from "@/components/PushToggle";
 import { isScheduledOn, isoWeekdayOf } from "@arta/core";
 import { todayKey } from "@/lib/habits";
+import { useMounted } from "@/lib/useMounted";
 
 const MOOD_EMOJI: Record<number, string> = { 1: "😞", 2: "😕", 3: "😐", 4: "🙂", 5: "😄" };
 
@@ -31,6 +32,7 @@ export default function Dashboard() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [online, setOnline] = useState(true);
   const syncEnabled = !!getSupabase();
+  const mounted = useMounted(); // gate render bergantung-waktu (hindari hydration mismatch)
 
   // Guard sisi client: tanpa sesi → /login; sesi tanpa onboarding → /onboarding.
   // Saat sesi valid, cache profil+target agar dashboard tetap bekerja offline.
@@ -125,7 +127,7 @@ export default function Dashboard() {
       <main style={{ maxWidth: 400, margin: "0 auto", padding: "16px 16px 96px", display: "flex", flexDirection: "column", gap: 12 }}>
         <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
           <div>
-            <p style={{ fontSize: 12, color: "var(--ah-text-tertiary)" }}>{greeting()}</p>
+            <p style={{ fontSize: 12, color: "var(--ah-text-tertiary)" }}>{mounted ? greeting() : " "}</p>
             <h1 style={{ fontSize: 18, fontWeight: 700 }}>{displayName ? `Hai, ${displayName}` : "Hai"}</h1>
           </div>
           {syncEnabled && <SyncBadge pending={pendingTables?.size ?? 0} online={online} />}

@@ -25,7 +25,12 @@ export function PushToggle() {
       if (next === "granted") show({ message: "Pengingat diaktifkan" });
       else if (next === "denied") {
         show({ variant: "info", message: "Izin notifikasi ditolak. Anda bisa mengubahnya di pengaturan browser." });
+      } else {
+        // prompt di-dismiss / belum diizinkan → tetap beri umpan-balik (jangan senyap)
+        show({ variant: "info", message: "Izin notifikasi belum diberikan. Coba lagi kapan saja." });
       }
+    } catch {
+      show({ variant: "error", message: "Gagal mengaktifkan pengingat. Coba lagi sebentar." });
     } finally { setBusy(false); }
   };
 
