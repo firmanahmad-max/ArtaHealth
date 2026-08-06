@@ -115,7 +115,8 @@ Deno.serve(async (req) => {
     { global: { headers: { Authorization: authHeader } } }, // RLS tetap berlaku atas nama user
   );
 
-  const { data: auth } = await supabase.auth.getUser();
+  // WAJIB teruskan token: getUser() tanpa argumen tak resolve user di Edge Function
+  const { data: auth } = await supabase.auth.getUser(authHeader.replace(/^Bearer\s+/i, ""));
   if (!auth.user) return json({ error: "unauthorized" }, 401);
 
   const parsedReq = aiRequestSchema.safeParse(await req.json().catch(() => ({})));
