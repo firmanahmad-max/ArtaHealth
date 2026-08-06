@@ -33,6 +33,22 @@ export function pushStatus(): PushStatus {
 }
 
 /**
+ * Ada langganan push AKTIF di perangkat ini? Izin "granted" saja tidak cukup —
+ * user bisa mengizinkan tanpa pernah subscribe (mis. set izin manual di browser).
+ * Pakai getRegistration() (bukan .ready yang menggantung bila SW belum aktif).
+ */
+export async function isSubscribed(): Promise<boolean> {
+  if (!pushSupported() || !pushConfigured()) return false;
+  try {
+    const registration = await navigator.serviceWorker.getRegistration();
+    if (!registration) return false;
+    return !!(await registration.pushManager.getSubscription());
+  } catch {
+    return false;
+  }
+}
+
+/**
  * base64url (VAPID) → BufferSource yang diminta PushManager.
  * Buffer dibuat eksplisit sebagai ArrayBuffer: Uint8Array generik membawa
  * ArrayBufferLike yang tidak diterima tipe applicationServerKey.

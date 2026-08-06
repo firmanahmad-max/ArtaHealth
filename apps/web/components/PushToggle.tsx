@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useToast } from "@arta/design-system";
-import { enablePush, disablePush, pushStatus, type PushStatus } from "@/lib/push";
+import { enablePush, disablePush, pushStatus, isSubscribed, type PushStatus } from "@/lib/push";
 
 /**
  * Pengaktifan pengingat — selalu lewat aksi eksplisit user, dengan alasan
@@ -11,18 +11,22 @@ import { enablePush, disablePush, pushStatus, type PushStatus } from "@/lib/push
 export function PushToggle() {
   const { show } = useToast();
   const [status, setStatus] = useState<PushStatus | null>(null);
+  const [subscribed, setSubscribed] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { setStatus(pushStatus()); }, []);
+  useEffect(() => {
+    setStatus(pushStatus());
+    void isSubscribed().then(setSubscribed);
+  }, []);
 
-  if (status === null || status === "unsupported" || status === "unconfigured") return null;
+  if (status === null || subscribed === null || status === "unsupported" || status === "unconfigured") return null;
 
   const enable = async () => {
     setBusy(true);
     try {
       const next = await enablePush();
       setStatus(next);
-      if (next === "granted") show({ message: "Pengingat diaktifkan" });
+      if (next === "granted") { setSubscribed(true); show({ message: "Pengingat diaktifkan" }); }
       else if (next === "denied") {
         show({ variant: "info", message: "Izin notifikasi ditolak. Anda bisa mengubahnya di pengaturan browser." });
       } else {
@@ -39,11 +43,13 @@ export function PushToggle() {
     try {
       await disablePush();
       setStatus("default");
+      setSubscribed(false);
       show({ message: "Pengingat dimatikan" });
     } finally { setBusy(false); }
   };
 
-  if (status === "granted") {
+  // "Aktif" hanya bila izin granted DAN benar-benar ter-subscribe (bukan izin saja).
+  if (status === "granted" && subscribed) {
     return (
       <div style={row}>
         <div style={{ flex: 1 }}>
