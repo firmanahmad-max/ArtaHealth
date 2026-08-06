@@ -32,7 +32,12 @@ Deno.serve(async () => {
   const vapidPrivate = Deno.env.get("VAPID_PRIVATE_KEY");
   const vapidSubject = Deno.env.get("VAPID_SUBJECT") ?? "mailto:halo@artahealth.id";
   if (!vapidPublic || !vapidPrivate) return json({ error: "VAPID belum dikonfigurasi" }, 500);
-  webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
+  try {
+    webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
+  } catch (e) {
+    // kunci/subject tidak valid → pesan jelas, bukan 500 opaque
+    return json({ error: `VAPID setup gagal: ${(e as Error).message}` }, 500);
+  }
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
