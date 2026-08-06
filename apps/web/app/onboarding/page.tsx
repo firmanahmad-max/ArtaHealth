@@ -29,8 +29,11 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (!supabase) { router.replace("/login"); return; }
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) router.replace("/login");
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!data.session) { router.replace("/login"); return; }
+      // sudah onboarding → jangan tampilkan form lagi, arahkan ke Beranda
+      const profile = await getPrimaryProfile();
+      if (profile?.onboarded_at) router.replace("/");
     });
   }, [supabase, router]);
 
@@ -88,7 +91,9 @@ export default function OnboardingPage() {
       }
 
       if (consents.notifications && typeof Notification !== "undefined" && Notification.permission === "default") {
-        await Notification.requestPermission();
+        // JANGAN di-await: prompt izin browser menunggu jawaban user dan akan
+        // membekukan navigasi di "Menyimpan...". Biarkan prompt muncul, app lanjut.
+        void Notification.requestPermission();
       }
 
       router.replace("/");
