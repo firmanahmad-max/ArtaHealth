@@ -48,8 +48,11 @@ create table ai_insights (
   read_at      timestamptz
 );
 create index idx_insights_profile on ai_insights (profile_id, created_at desc);
--- satu daily insight per profil per hari (cache — Blueprint §5.1)
-create unique index uq_daily_insight on ai_insights (profile_id, insight_type, (created_at::date))
+-- satu daily insight per profil per hari (cache — Blueprint §5.1).
+-- Pakai (created_at AT TIME ZONE 'UTC')::date — IMMUTABLE, sedangkan created_at::date
+-- bergantung timezone sesi (STABLE) dan ditolak sebagai ekspresi index. Batas hari
+-- UTC di sini hanya backstop; dedup per hari-lokal sesungguhnya dilakukan ai-gateway.
+create unique index uq_daily_insight on ai_insights (profile_id, insight_type, ((created_at at time zone 'utc')::date))
   where insight_type = 'daily';
 
 create table ai_chat_messages (
@@ -62,7 +65,8 @@ create table ai_chat_messages (
   created_at   timestamptz not null default now()
 );
 create index idx_chat_session on ai_chat_messages (session_id, created_at);
-create index idx_chat_profile_day on ai_chat_messages (profile_id, (created_at::date)); -- kuota harian free
+-- melayani query kuota harian: where profile_id = ? and created_at >= awal-hari (rentang)
+create index idx_chat_profile_day on ai_chat_messages (profile_id, created_at);
 
 create table subscriptions (
   account_id   uuid primary key references auth.users(id) on delete cascade,
