@@ -27,7 +27,7 @@ declare const Deno: {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
-Deno.serve(async () => {
+Deno.serve(async (req) => {
   const vapidPublic = Deno.env.get("VAPID_PUBLIC_KEY");
   const vapidPrivate = Deno.env.get("VAPID_PRIVATE_KEY");
   const vapidSubject = Deno.env.get("VAPID_SUBJECT") ?? "mailto:halo@artahealth.id";
@@ -52,6 +52,30 @@ Deno.serve(async () => {
     .is("revoked_at", null);
   if (devicesErr) return json({ error: devicesErr.message }, 500);
   if (!devices || devices.length === 0) return json({ sent: 0, skipped: 0 });
+
+  // Mode uji: kirim notifikasi statis ke semua perangkat aktif, lewati mesin
+  // pengingat & jam istirahat. Untuk memverifikasi setup push kapan pun.
+  if (new URL(req.url).searchParams.get("test") === "1") {
+    const payload = JSON.stringify({
+      title: "ArtaHealth", body: "Notifikasi uji — pengingat Anda aktif ✓", url: "/", kind: "test",
+    });
+    let sent = 0;
+    for (const device of devices) {
+      try {
+        await webpush.sendNotification(
+          { endpoint: device.endpoint, keys: { p256dh: device.p256dh, auth: device.auth } },
+          payload,
+        );
+        sent++;
+      } catch (e) {
+        const status = (e as { statusCode?: number }).statusCode;
+        if (status === 404 || status === 410) {
+          await supabase.from("push_devices").update({ revoked_at: new Date().toISOString() }).eq("id", device.id);
+        }
+      }
+    }
+    return json({ test: true, sent, devices: devices.length });
+  }
 
   const byProfile = new Map<string, typeof devices>();
   for (const d of devices) {
