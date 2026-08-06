@@ -28,7 +28,9 @@ declare const Deno: {
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, content-type",
+  // supabase-js mengirim apikey & x-client-info juga — tanpa ini browser memblokir
+  // request (preflight gagal → blank/no-CORS). curl mengabaikan CORS, makanya lolos.
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 const json = (body: unknown, status = 200) =>
@@ -108,25 +110,32 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "method tidak didukung" }, 405);
 
-  const authHeader = req.headers.get("Authorization") ?? "";
-  const supabase = createClient(
+  try {
+  const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+  const db = createClient(
     Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } }, // RLS tetap berlaku atas nama user
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
   );
-
-  // WAJIB teruskan token: getUser() tanpa argumen tak resolve user di Edge Function
-  const { data: auth } = await supabase.auth.getUser(authHeader.replace(/^Bearer\s+/i, ""));
-  if (!auth.user) return json({ error: "unauthorized" }, 401);
+  // Platform Supabase sudah verify_jwt SEBELUM fungsi ini jalan → tanda tangan token
+  // sudah tervalidasi, payload tepercaya. Ambil user id dari klaim `sub` via decode
+  // lokal (hemat 1 round-trip ke GoTrue vs getUser). Kepemilikan dicek via account_id.
+  let userId: string | null = null;
+  try {
+    const part = (token.split(".")[1] ?? "").replace(/-/g, "+").replace(/_/g, "/");
+    const padded = part + "=".repeat((4 - (part.length % 4)) % 4);
+    userId = JSON.parse(atob(padded)).sub ?? null;
+  } catch { userId = null; }
+  if (!userId) return json({ error: "unauthorized" }, 401);
 
   const parsedReq = aiRequestSchema.safeParse(await req.json().catch(() => ({})));
   if (!parsedReq.success) return json({ error: "request tidak valid" }, 400);
   const { useCase, profileId, payload, locale } = parsedReq.data;
 
-  // profil harus milik akun ini — RLS menegakkan, cek eksplisit agar pesannya jelas
-  const { data: profile } = await supabase
-    .from("profiles").select("id, timezone").eq("id", profileId).maybeSingle();
-  if (!profile) return json({ error: "profil tidak ditemukan" }, 404);
+  // profil WAJIB milik akun ini (service role bypass RLS → cek account_id manual)
+  const { data: profile } = await db
+    .from("profiles").select("id, timezone, account_id").eq("id", profileId).maybeSingle();
+  if (!profile || profile.account_id !== userId) return json({ error: "profil tidak ditemukan" }, 404);
 
   const tz = profile.timezone || "Asia/Jakarta";
   const todayKey = localDateKey(new Date(), tz);
@@ -146,11 +155,11 @@ Deno.serve(async (req) => {
     }
 
     // 2) Kuota harian free tier
-    const { data: sub } = await supabase
-      .from("subscriptions").select("tier, valid_until").eq("account_id", auth.user.id).maybeSingle();
+    const { data: sub } = await db
+      .from("subscriptions").select("tier, valid_until").eq("account_id", userId).maybeSingle();
     const isPro = sub?.tier === "pro" && (!sub.valid_until || new Date(sub.valid_until) > new Date());
     if (!isPro) {
-      const { count } = await supabase
+      const { count } = await db
         .from("ai_chat_messages")
         .select("id", { count: "exact", head: true })
         .eq("profile_id", profileId).eq("role", "user")
@@ -164,7 +173,7 @@ Deno.serve(async (req) => {
     }
 
     const sessionId = typeof payload.sessionId === "string" ? payload.sessionId : crypto.randomUUID();
-    await supabase.from("ai_chat_messages").insert({
+    await db.from("ai_chat_messages").insert({
       profile_id: profileId, session_id: sessionId, role: "user", content: message,
     });
 
@@ -183,7 +192,7 @@ Deno.serve(async (req) => {
       source = "safety";
     }
 
-    await supabase.from("ai_chat_messages").insert({
+    await db.from("ai_chat_messages").insert({
       profile_id: profileId, session_id: sessionId, role: "assistant",
       content: reply, token_count: result?.tokens ?? null,
     });
@@ -191,7 +200,7 @@ Deno.serve(async (req) => {
   }
 
   // ===== DAILY INSIGHT (cache sekali per hari per profil, §5.1 poin 7) =====
-  const { data: cached } = await supabase
+  const { data: cached } = await db
     .from("ai_insights").select("content, created_at")
     .eq("profile_id", profileId).eq("insight_type", "daily")
     .gte("created_at", `${todayKey}T00:00:00Z`)
@@ -215,9 +224,14 @@ Deno.serve(async (req) => {
     source = "safety";
   }
 
-  await supabase.from("ai_insights").insert({
+  await db.from("ai_insights").insert({
     profile_id: profileId, insight_type: "daily",
     content: JSON.stringify(insight), data_context: ctxParsed.data,
   });
   return json({ insight, source });
+  } catch (e) {
+    // exception tak tertangani → 500 DENGAN CORS (agar client bisa membacanya) + pesan aslinya
+    console.error("ai-gateway crash:", (e as Error)?.message, (e as Error)?.stack);
+    return json({ error: "internal", detail: String((e as Error)?.message ?? e) }, 500);
+  }
 });
