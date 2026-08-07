@@ -58,8 +58,22 @@ export interface LocalHabitCompletion {
   deletedAt: string | null;
 }
 
+/** Pembacaan biomarker (Fase 2). classification = hasil engine deterministik di-cache. */
+export interface LocalBiomarkerReading {
+  clientId: string; profileId: string;
+  biomarker: "bp" | "glucose";
+  /** konteks glukosa (gdp/gds/pp2/hba1c); null untuk tekanan darah */
+  context: string | null;
+  /** {systolic,diastolic} untuk bp · {value} untuk glukosa */
+  values: Record<string, number>;
+  /** BiomarkerClassification dari @arta/core (di-cache utk tampil cepat/offline) */
+  classification: unknown | null;
+  measuredAt: string; note?: string;
+  deletedAt: string | null;
+}
+
 export type LogTableName = "hydration_logs" | "sleep_logs" | "activity_logs" | "mood_logs" | "weight_logs";
-export type SyncTableName = LogTableName | "habits" | "habit_completions";
+export type SyncTableName = LogTableName | "habits" | "habit_completions" | "biomarker_readings";
 
 export interface OutboxEntry {
   id?: number;
@@ -79,6 +93,7 @@ type ArtaDB = Dexie & {
   weight_logs: EntityTable<LocalWeightLog, "clientId">;
   habits: EntityTable<LocalHabit, "id">;
   habit_completions: EntityTable<LocalHabitCompletion, "clientId">;
+  biomarker_readings: EntityTable<LocalBiomarkerReading, "clientId">;
   outbox: EntityTable<OutboxEntry, "id">;
   meta: EntityTable<MetaEntry, "key">;
 };
@@ -98,6 +113,10 @@ db.version(1).stores({
 db.version(2).stores({
   habits: "id, isActive",
   habit_completions: "clientId, date, habitId",
+});
+// v3 (Fase 2): biomarker — index [biomarker+measuredAt] melayani query trend per jenis
+db.version(3).stores({
+  biomarker_readings: "clientId, measuredAt, biomarker, [biomarker+measuredAt]",
 });
 
 /** Awal hari lokal perangkat (ISO) — batas "hari ini" untuk skor & dashboard. */

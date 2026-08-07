@@ -2,6 +2,7 @@
 import {
   db, type SyncTableName, type LocalHydrationLog, type LocalSleepLog, type LocalActivityLog,
   type LocalMoodLog, type LocalWeightLog, type LocalHabit, type LocalHabitCompletion,
+  type LocalBiomarkerReading,
 } from "./db";
 import { getSupabase, type PrimaryProfile } from "./supabase";
 
@@ -38,7 +39,7 @@ export async function getTargets(): Promise<{ hydrationMl: number; steps: number
 
 type AnyLocalRow =
   | LocalHydrationLog | LocalSleepLog | LocalActivityLog | LocalMoodLog | LocalWeightLog
-  | LocalHabit | LocalHabitCompletion;
+  | LocalHabit | LocalHabitCompletion | LocalBiomarkerReading;
 
 /** habits ber-idempoten lewat PK id (uuid dibuat client), bukan client_id. */
 const CONFLICT_KEY: Record<SyncTableName, string> = {
@@ -49,6 +50,7 @@ const CONFLICT_KEY: Record<SyncTableName, string> = {
   weight_logs: "profile_id,client_id",
   habits: "id",
   habit_completions: "profile_id,client_id",
+  biomarker_readings: "profile_id,client_id",
 };
 
 function toServerRow(table: SyncTableName, row: AnyLocalRow): Record<string, unknown> {
@@ -64,6 +66,14 @@ function toServerRow(table: SyncTableName, row: AnyLocalRow): Record<string, unk
     return {
       profile_id: r.profileId, client_id: r.clientId, habit_id: r.habitId,
       date: r.date, value: r.value, deleted_at: r.deletedAt,
+    };
+  }
+  if (table === "biomarker_readings") {
+    const r = row as LocalBiomarkerReading;
+    return {
+      profile_id: r.profileId, client_id: r.clientId, biomarker: r.biomarker,
+      context: r.context, values: r.values, classification: r.classification ?? null,
+      measured_at: r.measuredAt, note: r.note ?? null, deleted_at: r.deletedAt,
     };
   }
   const base = { profile_id: (row as { profileId: string }).profileId, client_id: (row as { clientId: string }).clientId, deleted_at: (row as { deletedAt: string | null }).deletedAt };
@@ -140,6 +150,16 @@ function fromServerRow(table: SyncTableName, r: ServerRow): AnyLocalRow {
       date: r.date, value: r.value, deletedAt: (r.deleted_at as string | null) ?? null,
     } as LocalHabitCompletion;
   }
+  if (table === "biomarker_readings") {
+    return {
+      clientId: r.client_id, profileId: r.profile_id, biomarker: r.biomarker,
+      context: (r.context as string | null) ?? null,
+      values: (r.values as Record<string, number>) ?? {},
+      classification: r.classification ?? null,
+      measuredAt: r.measured_at, note: (r.note as string | null) ?? undefined,
+      deletedAt: (r.deleted_at as string | null) ?? null,
+    } as LocalBiomarkerReading;
+  }
   const base = {
     clientId: r.client_id as string,
     profileId: r.profile_id as string,
@@ -165,6 +185,7 @@ function fromServerRow(table: SyncTableName, r: ServerRow): AnyLocalRow {
 const SYNC_TABLES: SyncTableName[] = [
   "hydration_logs", "sleep_logs", "activity_logs", "mood_logs", "weight_logs",
   "habits", "habit_completions", // habits sebelum completions (FK habit_id)
+  "biomarker_readings",
 ];
 const PULL_PAGE = 500;
 let pulling = false;

@@ -2,15 +2,29 @@
 import { useEffect, useState } from "react";
 import { SheetModal, useToast } from "@arta/design-system";
 import { logHydration, logSleep, logActivity, logMood, logWeight, undoLog } from "@/lib/quicklog";
+import { logBloodPressure, logGlucose, undoBiomarker } from "@/lib/biomarker";
+import { featureBiomarker } from "@/lib/features";
+import type { GlucoseContext } from "@arta/core";
 
-type LogKind = "hydration" | "sleep" | "activity" | "mood" | "weight";
+type LogKind = "hydration" | "sleep" | "activity" | "mood" | "weight" | "bp" | "glucose";
 
-const KINDS: { key: LogKind; icon: string; label: string }[] = [
+const BASE_KINDS: { key: LogKind; icon: string; label: string }[] = [
   { key: "hydration", icon: "💧", label: "Air" },
   { key: "sleep", icon: "🌙", label: "Tidur" },
   { key: "activity", icon: "👟", label: "Aktivitas" },
   { key: "mood", icon: "🙂", label: "Mood" },
   { key: "weight", icon: "⚖️", label: "Berat" },
+];
+// Fase 2: biomarker hanya muncul di balik feature flag (ambang menunggu review medis)
+const KINDS = featureBiomarker()
+  ? [...BASE_KINDS, { key: "bp" as LogKind, icon: "🫀", label: "Tensi" }, { key: "glucose" as LogKind, icon: "🩸", label: "Gula" }]
+  : BASE_KINDS;
+
+const GLUCOSE_CONTEXTS: { value: GlucoseContext; label: string; hint: string }[] = [
+  { value: "gdp", label: "Puasa", hint: "GDP" },
+  { value: "gds", label: "Sewaktu", hint: "GDS" },
+  { value: "pp2", label: "2 jam", hint: "PP" },
+  { value: "hba1c", label: "HbA1c", hint: "%" },
 ];
 
 const ACTIVITY_TYPES = [
@@ -39,10 +53,18 @@ export function QuickLogSheet({ open, onClose }: { open: boolean; onClose: () =>
   const [actMin, setActMin] = useState("30");
   const [actSteps, setActSteps] = useState("");
   const [weight, setWeight] = useState("");
+  const [systolic, setSystolic] = useState("");
+  const [diastolic, setDiastolic] = useState("");
+  const [glucoseCtx, setGlucoseCtx] = useState<GlucoseContext>("gdp");
+  const [glucoseVal, setGlucoseVal] = useState("");
 
   const done = (message: string, table: Parameters<typeof undoLog>[0], clientId: string) => {
     onClose();
     show({ message, onUndo: () => void undoLog(table, clientId) });
+  };
+  const doneBiomarker = (message: string, clientId: string, redFlag: boolean) => {
+    onClose();
+    show({ variant: redFlag ? "error" : undefined, message, onUndo: () => void undoBiomarker(clientId) });
   };
   const fail = () => show({ variant: "error", message: "Gagal mencatat. Coba sekali lagi." });
 
@@ -92,6 +114,25 @@ export function QuickLogSheet({ open, onClose }: { open: boolean; onClose: () =>
     try {
       const { clientId } = await logWeight(Number(weight));
       done(`Berat ${weight} kg tercatat`, "weight_logs", clientId);
+    } catch { fail(); } finally { setBusy(false); }
+  };
+
+  const saveBp = async () => {
+    setBusy(true);
+    try {
+      const { clientId, classification } = await logBloodPressure(Number(systolic), Number(diastolic));
+      setSystolic(""); setDiastolic("");
+      doneBiomarker(`Tensi ${systolic}/${diastolic} — ${classification.band.label}`, clientId, classification.redFlag);
+    } catch { fail(); } finally { setBusy(false); }
+  };
+
+  const saveGlucose = async () => {
+    setBusy(true);
+    try {
+      const { clientId, classification } = await logGlucose(glucoseCtx, Number(glucoseVal));
+      const label = GLUCOSE_CONTEXTS.find((c) => c.value === glucoseCtx)?.label ?? "";
+      setGlucoseVal("");
+      doneBiomarker(`Gula (${label}) ${glucoseVal} — ${classification.band.label}`, clientId, classification.redFlag);
     } catch { fail(); } finally { setBusy(false); }
   };
 
@@ -201,6 +242,55 @@ export function QuickLogSheet({ open, onClose }: { open: boolean; onClose: () =>
           <button onClick={() => void saveWeight()} disabled={busy || !weight} style={btnPrimary}>Catat Berat</button>
         </div>
       )}
+
+      {kind === "bp" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <label style={label}>
+              Sistolik (atas)
+              <input type="number" inputMode="numeric" min={50} max={300} value={systolic} onChange={(e) => setSystolic(e.target.value)} placeholder="120" style={input} />
+            </label>
+            <label style={label}>
+              Diastolik (bawah)
+              <input type="number" inputMode="numeric" min={30} max={200} value={diastolic} onChange={(e) => setDiastolic(e.target.value)} placeholder="80" style={input} />
+            </label>
+          </div>
+          <p style={hint}>Ukur duduk tenang, lengan setinggi jantung. Satuan mmHg.</p>
+          <button onClick={() => void saveBp()} disabled={busy || !systolic || !diastolic} style={btnPrimary}>Catat Tensi</button>
+        </div>
+      )}
+
+      {kind === "glucose" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {GLUCOSE_CONTEXTS.map((c) => (
+              <button
+                key={c.value}
+                onClick={() => setGlucoseCtx(c.value)}
+                aria-pressed={glucoseCtx === c.value}
+                style={{
+                  minHeight: 44, padding: "0 12px", borderRadius: "var(--ah-r-full)", cursor: "pointer",
+                  border: glucoseCtx === c.value ? "1.5px solid var(--ah-cyan)" : "1px solid var(--ah-border)",
+                  background: glucoseCtx === c.value ? "var(--ah-gradient-soft)" : "var(--ah-surface-2)",
+                  color: "var(--ah-text-primary)", fontSize: 13, fontWeight: 600,
+                }}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+          <label style={label}>
+            {glucoseCtx === "hba1c" ? "HbA1c (%)" : "Gula darah (mg/dL)"}
+            <input
+              type="number" inputMode="decimal"
+              step={glucoseCtx === "hba1c" ? "0.1" : "1"}
+              value={glucoseVal} onChange={(e) => setGlucoseVal(e.target.value)}
+              placeholder={glucoseCtx === "hba1c" ? "5.6" : "95"} style={input}
+            />
+          </label>
+          <button onClick={() => void saveGlucose()} disabled={busy || !glucoseVal} style={btnPrimary}>Catat Gula Darah</button>
+        </div>
+      )}
     </SheetModal>
   );
 }
@@ -216,6 +306,7 @@ const btnPrimary: React.CSSProperties = {
   background: "var(--ah-gradient-hero)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer",
 };
 const label: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 6, fontSize: 12, fontWeight: 600, color: "var(--ah-text-secondary)" };
+const hint: React.CSSProperties = { fontSize: 11, color: "var(--ah-text-tertiary)", lineHeight: 1.4 };
 const input: React.CSSProperties = {
   minHeight: 48, borderRadius: "var(--ah-r-inner)", border: "1px solid var(--ah-border)",
   background: "var(--ah-surface-1)", color: "var(--ah-text-primary)", padding: "0 12px", fontSize: 15,
