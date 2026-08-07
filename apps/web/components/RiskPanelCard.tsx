@@ -6,12 +6,14 @@ import {
 } from "@arta/core";
 import { db, type LocalBiomarkerReading } from "@/lib/db";
 import { asClassification } from "@/lib/biomarker";
+import { monitoredSet, setMonitored, CONDITION_META } from "@/lib/conditions";
 import { BiomarkerTrendChart, type TrendPoint } from "./BiomarkerTrendChart";
 
 /**
  * Risk Panel (Fase 2 · addendum §2.4) — TERPISAH dari Health Score.
- * Klasifikasi tekanan darah & gula darah terbaru terhadap ambang guideline
- * (deterministik) + tren pita-zona + kartu red-flag untuk SETIAP kegawatan.
+ * Klasifikasi TD & gula darah terbaru vs ambang guideline (deterministik) + tren
+ * pita-zona + kartu red-flag untuk SETIAP kegawatan. Menyatakan kondisi yang
+ * dipantau membuat panel proaktif (baris muncul walau belum ada data).
  * Alat edukasi/skrining — BUKAN diagnosis. Dirender hanya di balik feature flag.
  */
 
@@ -36,7 +38,6 @@ function formatMeasured(iso: string): string {
 }
 const shortDate = (iso: string) => new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "short" });
 
-/** Riwayat suatu biomarker, urut lama → baru, tanpa yang di-tombstone. */
 const history = async (biomarker: "bp" | "glucose"): Promise<LocalBiomarkerReading[]> => {
   const rows = await db.biomarker_readings.where("[biomarker+measuredAt]")
     .between([biomarker, ""], [biomarker, "￿"]).toArray();
@@ -46,23 +47,26 @@ const history = async (biomarker: "bp" | "glucose"): Promise<LocalBiomarkerReadi
 export function RiskPanelCard({ onLog }: { onLog: () => void }) {
   const bpRows = useLiveQuery(() => history("bp"), []);
   const glucoseRows = useLiveQuery(() => history("glucose"), []);
+  const monitored = useLiveQuery(() => monitoredSet(), []);
 
-  if (bpRows === undefined || glucoseRows === undefined) return null; // masih memuat
+  if (bpRows === undefined || glucoseRows === undefined || monitored === undefined) return null;
 
   const latestBp = bpRows.at(-1) ?? null;
   const latestGlucose = glucoseRows.at(-1) ?? null;
   const bpClass = latestBp ? asClassification(latestBp.classification) : null;
   const glucoseClass = latestGlucose ? asClassification(latestGlucose.classification) : null;
 
-  // SEMUA red-flag ditampilkan (mis. krisis TD + hipoglikemia bisa muncul bersamaan)
   const redFlags = [bpClass, glucoseClass].filter(
     (c): c is BiomarkerClassification => !!c?.redFlag && !!c.redFlagReason,
   );
 
-  const empty = !latestBp && !latestGlucose;
+  const bpMonitored = monitored.has("hypertension");
+  const glucoseMonitored = monitored.has("diabetes");
+  const showBp = !!latestBp || bpMonitored;
+  const showGlucose = !!latestGlucose || glucoseMonitored;
+  const empty = !showBp && !showGlucose;
   const guidelineRef = bpClass?.guidelineRef ?? glucoseClass?.guidelineRef;
 
-  // tren gula difilter ke konteks pembacaan terbaru (ambang beda per konteks)
   const glucoseCtx = latestGlucose?.context ?? null;
   const glucoseTrend: TrendPoint[] = glucoseCtx
     ? glucoseRows.filter((r) => r.context === glucoseCtx)
@@ -79,14 +83,14 @@ export function RiskPanelCard({ onLog }: { onLog: () => void }) {
 
       {empty ? (
         <p style={{ fontSize: 12, color: "var(--ah-text-secondary)", lineHeight: 1.5 }}>
-          Pantau tekanan darah &amp; gula darah untuk deteksi dini. Catat hasil ukur pertama Anda.
+          Pantau tekanan darah &amp; gula darah untuk deteksi dini. Pilih yang ingin Anda pantau di bawah, atau langsung catat hasil ukur.
         </p>
       ) : (
         <>
           {redFlags.map((c) => <RedFlagBanner key={c.redFlagReason} classification={c} />)}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {latestBp && bpClass && (
+            {showBp && (latestBp && bpClass ? (
               <div style={marker}>
                 <MarkerRow
                   icon="🫀" name="Tekanan Darah"
@@ -95,8 +99,11 @@ export function RiskPanelCard({ onLog }: { onLog: () => void }) {
                 />
                 <BiomarkerTrendChart points={bpTrend} bands={bandsFor("bp", "systolic")} unit="mmHg" caption="Tren sistolik" />
               </div>
-            )}
-            {latestGlucose && glucoseClass && glucoseCtx && (
+            ) : (
+              <NudgeRow icon="🫀" name="Tekanan Darah" hint={CONDITION_META.hypertension.hint} onLog={onLog} />
+            ))}
+
+            {showGlucose && (latestGlucose && glucoseClass && glucoseCtx ? (
               <div style={marker}>
                 <MarkerRow
                   icon="🩸" name={`Gula Darah · ${GLUCOSE_CONTEXT_LABEL[glucoseCtx] ?? ""}`}
@@ -105,14 +112,60 @@ export function RiskPanelCard({ onLog }: { onLog: () => void }) {
                 />
                 <BiomarkerTrendChart points={glucoseTrend} bands={bandsFor("glucose", glucoseCtx)} unit={glucoseClass.band.unit} caption={`Tren ${GLUCOSE_CONTEXT_LABEL[glucoseCtx] ?? ""}`} />
               </div>
-            )}
+            ) : (
+              <NudgeRow icon="🩸" name="Gula Darah" hint={CONDITION_META.diabetes.hint} onLog={onLog} />
+            ))}
           </div>
 
-          <p style={disclaimer}>
-            Klasifikasi mengikuti {guidelineRef}. Ini skrining, bukan diagnosis — konfirmasikan ke tenaga medis.
-          </p>
+          {guidelineRef && (
+            <p style={disclaimer}>
+              Klasifikasi mengikuti {guidelineRef}. Ini skrining, bukan diagnosis — konfirmasikan ke tenaga medis.
+            </p>
+          )}
         </>
       )}
+
+      <ConditionChooser monitored={monitored} />
+    </div>
+  );
+}
+
+function ConditionChooser({ monitored }: { monitored: Set<string> }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", borderTop: "1px solid var(--ah-border)", paddingTop: 10 }}>
+      <span style={{ fontSize: 11, color: "var(--ah-text-tertiary)" }}>Pantau:</span>
+      {(["hypertension", "diabetes"] as const).map((cond) => {
+        const meta = CONDITION_META[cond];
+        const on = monitored.has(cond);
+        return (
+          <button
+            key={cond}
+            onClick={() => void setMonitored(cond, !on)}
+            aria-pressed={on}
+            style={{
+              minHeight: 32, padding: "0 12px", borderRadius: "var(--ah-r-full)", cursor: "pointer",
+              border: on ? "1.5px solid var(--ah-cyan)" : "1px solid var(--ah-border)",
+              background: on ? "var(--ah-gradient-soft)" : "transparent",
+              color: on ? "var(--ah-text-primary)" : "var(--ah-text-secondary)", fontSize: 12, fontWeight: 600,
+            }}
+          >
+            {on ? "✓ " : ""}{meta.icon} {meta.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function NudgeRow({ icon, name, hint, onLog }: { icon: string; name: string; hint: string; onLog: () => void }) {
+  return (
+    <div style={{ ...marker, flexDirection: "row", alignItems: "center", gap: 10 }}>
+      <span style={{ fontSize: 20 }} aria-hidden>{icon}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ah-text-primary)" }}>{name}</p>
+        <p style={{ fontSize: 11, color: "var(--ah-text-tertiary)" }}>Belum ada data — pantau dimulai</p>
+      </div>
+      <button onClick={onLog} style={nudgeBtn}>{hint}</button>
     </div>
   );
 }
@@ -163,6 +216,10 @@ const marker: React.CSSProperties = {
 const addBtn: React.CSSProperties = {
   minHeight: 32, padding: "0 12px", borderRadius: "var(--ah-r-full)", border: "1px solid var(--ah-border)",
   background: "transparent", color: "var(--ah-text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer",
+};
+const nudgeBtn: React.CSSProperties = {
+  minHeight: 36, padding: "0 12px", borderRadius: "var(--ah-r-full)", border: "none",
+  background: "var(--ah-gradient-hero)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
 };
 const redFlagBox: React.CSSProperties = {
   background: "var(--ah-score-low)", borderRadius: "var(--ah-r-inner)", padding: 12,

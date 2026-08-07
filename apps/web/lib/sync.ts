@@ -2,7 +2,7 @@
 import {
   db, type SyncTableName, type LocalHydrationLog, type LocalSleepLog, type LocalActivityLog,
   type LocalMoodLog, type LocalWeightLog, type LocalHabit, type LocalHabitCompletion,
-  type LocalBiomarkerReading,
+  type LocalBiomarkerReading, type LocalMonitoredCondition,
 } from "./db";
 import { getSupabase, type PrimaryProfile } from "./supabase";
 
@@ -39,9 +39,9 @@ export async function getTargets(): Promise<{ hydrationMl: number; steps: number
 
 type AnyLocalRow =
   | LocalHydrationLog | LocalSleepLog | LocalActivityLog | LocalMoodLog | LocalWeightLog
-  | LocalHabit | LocalHabitCompletion | LocalBiomarkerReading;
+  | LocalHabit | LocalHabitCompletion | LocalBiomarkerReading | LocalMonitoredCondition;
 
-/** habits ber-idempoten lewat PK id (uuid dibuat client), bukan client_id. */
+/** habits & monitored_conditions ber-idempoten lewat PK id (uuid client), bukan client_id. */
 const CONFLICT_KEY: Record<SyncTableName, string> = {
   hydration_logs: "profile_id,client_id",
   sleep_logs: "profile_id,client_id",
@@ -51,6 +51,7 @@ const CONFLICT_KEY: Record<SyncTableName, string> = {
   habits: "id",
   habit_completions: "profile_id,client_id",
   biomarker_readings: "profile_id,client_id",
+  monitored_conditions: "id",
 };
 
 function toServerRow(table: SyncTableName, row: AnyLocalRow): Record<string, unknown> {
@@ -74,6 +75,13 @@ function toServerRow(table: SyncTableName, row: AnyLocalRow): Record<string, unk
       profile_id: r.profileId, client_id: r.clientId, biomarker: r.biomarker,
       context: r.context, values: r.values, classification: r.classification ?? null,
       measured_at: r.measuredAt, note: r.note ?? null, deleted_at: r.deletedAt,
+    };
+  }
+  if (table === "monitored_conditions") {
+    const r = row as LocalMonitoredCondition;
+    return {
+      id: r.id, profile_id: r.profileId, condition: r.condition, status: r.status,
+      since: r.since, note: r.note ?? null, created_at: r.createdAt, deleted_at: r.deletedAt,
     };
   }
   const base = { profile_id: (row as { profileId: string }).profileId, client_id: (row as { clientId: string }).clientId, deleted_at: (row as { deletedAt: string | null }).deletedAt };
@@ -160,6 +168,13 @@ function fromServerRow(table: SyncTableName, r: ServerRow): AnyLocalRow {
       deletedAt: (r.deleted_at as string | null) ?? null,
     } as LocalBiomarkerReading;
   }
+  if (table === "monitored_conditions") {
+    return {
+      id: r.id, profileId: r.profile_id, condition: r.condition, status: r.status,
+      since: (r.since as string | null) ?? null, note: (r.note as string | null) ?? undefined,
+      createdAt: r.created_at, deletedAt: (r.deleted_at as string | null) ?? null,
+    } as LocalMonitoredCondition;
+  }
   const base = {
     clientId: r.client_id as string,
     profileId: r.profile_id as string,
@@ -185,7 +200,7 @@ function fromServerRow(table: SyncTableName, r: ServerRow): AnyLocalRow {
 const SYNC_TABLES: SyncTableName[] = [
   "hydration_logs", "sleep_logs", "activity_logs", "mood_logs", "weight_logs",
   "habits", "habit_completions", // habits sebelum completions (FK habit_id)
-  "biomarker_readings",
+  "biomarker_readings", "monitored_conditions",
 ];
 const PULL_PAGE = 500;
 let pulling = false;
@@ -230,7 +245,8 @@ async function pullTable(table: SyncTableName, profileId: string): Promise<void>
     const pendingIds = new Set(
       (await db.outbox.where("table").equals(table).toArray()).map((e) => e.clientId),
     );
-    const serverKeyOf = (r: ServerRow) => (table === "habits" ? (r.id as string) : (r.client_id as string));
+    const idKeyed = table === "habits" || table === "monitored_conditions";
+    const serverKeyOf = (r: ServerRow) => (idKeyed ? (r.id as string) : (r.client_id as string));
     const localRows = rows.filter((r) => !pendingIds.has(serverKeyOf(r))).map((r) => fromServerRow(table, r));
     // union EntityTable tidak punya signature bulkPut gabungan → cast struktural
     const target = db[table] as unknown as { bulkPut(items: AnyLocalRow[]): Promise<unknown> };

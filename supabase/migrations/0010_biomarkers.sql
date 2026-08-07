@@ -82,7 +82,10 @@ create table monitored_conditions (
   updated_at  timestamptz not null default now(),
   deleted_at  timestamptz
 );
-create unique index uq_monitored_conditions on monitored_conditions (profile_id, condition) where deleted_at is null;
+-- Sinkron via PK id (pola habits, migration 0007). Aturan "satu aktif per kondisi"
+-- ditegakkan di sisi app (reuse id lokal) — index ini non-unik agar upsert-by-id
+-- tak pernah bentrok dengan predikat partial saat sync dua perangkat.
+create index idx_monitored_conditions_condition on monitored_conditions (profile_id, condition) where deleted_at is null;
 create index idx_monitored_conditions_profile_updated on monitored_conditions (profile_id, updated_at);
 create trigger trg_monitored_conditions_updated_at
   before update on monitored_conditions for each row execute function set_updated_at();
