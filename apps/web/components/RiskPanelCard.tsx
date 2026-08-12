@@ -7,7 +7,12 @@ import {
 import { db, type LocalBiomarkerReading } from "@/lib/db";
 import { asClassification } from "@/lib/biomarker";
 import { monitoredSet, setMonitored, CONDITION_META, type MonitoredCondition } from "@/lib/conditions";
+import { featureBiomarkerV2 } from "@/lib/features";
 import { BiomarkerTrendChart, type TrendPoint } from "./BiomarkerTrendChart";
+
+/** Biomarker & kondisi yang hanya tampil bila flag V2 aktif (lipid & asam urat). */
+const V2_BIOMARKERS = new Set(["lipid", "uric_acid"]);
+const V2_CONDITIONS = new Set<MonitoredCondition>(["dyslipidemia", "hyperuricemia"]);
 
 /**
  * Risk Panel (Fase 2 · addendum §2.4) — TERPISAH dari Health Score. Empat
@@ -55,12 +60,15 @@ export function RiskPanelCard({ onLog }: { onLog: () => void }) {
 
   if (rows === undefined || monitored === undefined) return null;
 
+  // V2 (lipid & asam urat) hanya bila flag V2 aktif — ambangnya direview terpisah.
+  const activeMarkers = featureBiomarkerV2() ? MARKERS : MARKERS.filter((m) => !V2_BIOMARKERS.has(m.biomarker));
+
   const grouped = new Map<string, LocalBiomarkerReading[]>();
   for (const r of rows) (grouped.get(r.biomarker) ?? grouped.set(r.biomarker, []).get(r.biomarker)!).push(r);
 
-  const shown = MARKERS.filter((m) => grouped.has(m.biomarker) || monitored.has(m.condition));
+  const shown = activeMarkers.filter((m) => grouped.has(m.biomarker) || monitored.has(m.condition));
   const redFlags: BiomarkerClassification[] = [];
-  for (const m of MARKERS) {
+  for (const m of activeMarkers) {
     const cls = asClassification(grouped.get(m.biomarker)?.at(-1)?.classification);
     if (cls?.redFlag && cls.redFlagReason) redFlags.push(cls);
   }
@@ -175,7 +183,9 @@ function ConditionChooser({ monitored }: { monitored: Set<string> }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", borderTop: "1px solid var(--ah-border)", paddingTop: 10 }}>
       <span style={{ fontSize: 11, color: "var(--ah-text-tertiary)" }}>Pantau:</span>
-      {(Object.keys(CONDITION_META) as MonitoredCondition[]).map((cond) => {
+      {(Object.keys(CONDITION_META) as MonitoredCondition[])
+        .filter((cond) => featureBiomarkerV2() || !V2_CONDITIONS.has(cond))
+        .map((cond) => {
         const meta = CONDITION_META[cond];
         const on = monitored.has(cond);
         return (

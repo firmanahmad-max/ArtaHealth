@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { SheetModal, useToast } from "@arta/design-system";
 import { logHydration, logSleep, logActivity, logMood, logWeight, undoLog } from "@/lib/quicklog";
 import { logBloodPressure, logGlucose, logLipid, logUricAcid, undoBiomarker } from "@/lib/biomarker";
-import { featureBiomarker } from "@/lib/features";
+import { featureBiomarker, featureBiomarkerV2 } from "@/lib/features";
 import type { GlucoseContext, Sex } from "@arta/core";
 
 type LogKind = "hydration" | "sleep" | "activity" | "mood" | "weight" | "bp" | "glucose" | "lipid" | "uric_acid";
@@ -15,16 +15,23 @@ const BASE_KINDS: { key: LogKind; icon: string; label: string }[] = [
   { key: "mood", icon: "🙂", label: "Mood" },
   { key: "weight", icon: "⚖️", label: "Berat" },
 ];
-// Fase 2: biomarker hanya muncul di balik feature flag (ambang menunggu review medis)
-const KINDS = featureBiomarker()
-  ? [
-      ...BASE_KINDS,
-      { key: "bp" as LogKind, icon: "🫀", label: "Tensi" },
-      { key: "glucose" as LogKind, icon: "🩸", label: "Gula" },
-      { key: "lipid" as LogKind, icon: "🧈", label: "Lipid" },
-      { key: "uric_acid" as LogKind, icon: "🦴", label: "Asam Urat" },
-    ]
-  : BASE_KINDS;
+// Fase 2: biomarker hanya muncul di balik feature flag (ambang menunggu review medis).
+// V1.5 (tensi/gula) & V2 (lipid/asam urat) dipisah flag — ambang V2 direview terpisah.
+const KINDS = [
+  ...BASE_KINDS,
+  ...(featureBiomarker()
+    ? [
+        { key: "bp" as LogKind, icon: "🫀", label: "Tensi" },
+        { key: "glucose" as LogKind, icon: "🩸", label: "Gula" },
+      ]
+    : []),
+  ...(featureBiomarkerV2()
+    ? [
+        { key: "lipid" as LogKind, icon: "🧈", label: "Lipid" },
+        { key: "uric_acid" as LogKind, icon: "🦴", label: "Asam Urat" },
+      ]
+    : []),
+];
 
 const GLUCOSE_CONTEXTS: { value: GlucoseContext; label: string; hint: string }[] = [
   { value: "gdp", label: "Puasa", hint: "GDP" },
