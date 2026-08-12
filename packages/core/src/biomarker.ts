@@ -64,7 +64,10 @@ export interface BiomarkerClassification {
 
 export type BiomarkerInput =
   | { biomarker: "bp"; systolic: number; diastolic: number }
-  | { biomarker: "glucose"; context: GlucoseContext; value: number };
+  | { biomarker: "glucose"; context: GlucoseContext; value: number }
+  // panel lipid: tiap sub-nilai opsional (pemeriksaan bisa parsial)
+  | { biomarker: "lipid"; totalChol?: number; ldl?: number; hdl?: number; tg?: number }
+  | { biomarker: "uric_acid"; value: number; sex: Sex };
 
 /**
  * Ambang kegawatan akut (mg/dL & mmHg). KONSTANTA keselamatan — jangan pindah
@@ -104,8 +107,12 @@ export function classifyValue(
 
 /** Klasifikasi satu pembacaan biomarker. Melempar Error bila band tak ditemukan. */
 export function classifyBiomarker(input: BiomarkerInput, bands: Band[]): BiomarkerClassification {
-  if (input.biomarker === "bp") return classifyBp(input.systolic, input.diastolic, bands);
-  return classifyGlucose(input.context, input.value, bands);
+  switch (input.biomarker) {
+    case "bp": return classifyBp(input.systolic, input.diastolic, bands);
+    case "glucose": return classifyGlucose(input.context, input.value, bands);
+    case "lipid": return classifyLipid(input, bands);
+    case "uric_acid": return classifyUricAcid(input.value, input.sex, bands);
+  }
 }
 
 function classifyBp(systolic: number, diastolic: number, bands: Band[]): BiomarkerClassification {
@@ -154,6 +161,54 @@ function classifyGlucose(context: GlucoseContext, value: number, bands: Band[]):
   };
 }
 
+/**
+ * Panel lipid: klasifikasi tiap sub-nilai yang ADA; kategori keseluruhan =
+ * TERBURUK (rank tertinggi). HDL terbalik sudah dikodekan lewat rank di data
+ * (HDL rendah = rank tinggi), jadi "ambil rank tertinggi" berlaku seragam.
+ * Tak ada red-flag akut untuk lipid.
+ */
+function classifyLipid(
+  input: { totalChol?: number; ldl?: number; hdl?: number; tg?: number }, bands: Band[],
+): BiomarkerClassification {
+  const params: Array<[string, number | undefined]> = [
+    ["total_chol", input.totalChol], ["ldl", input.ldl], ["hdl", input.hdl], ["tg", input.tg],
+  ];
+  const components: BiomarkerClassification["components"] = [];
+  let governing: Band | null = null;
+  for (const [parameter, value] of params) {
+    if (value === undefined) continue;
+    const b = classifyValue(bands, "lipid", parameter, value);
+    if (!b) throw new Error(`band lipid tidak lengkap untuk ${parameter}`);
+    components.push({ parameter, value, band: toRef(b) });
+    if (!governing || b.rank > governing.rank) governing = b;
+  }
+  if (!governing) throw new Error("panel lipid tanpa nilai");
+  return {
+    biomarker: "lipid",
+    band: toRef(governing),
+    zone: governing.zone,
+    redFlag: false,
+    redFlagReason: null,
+    guidelineRef: governing.guidelineRef,
+    components,
+  };
+}
+
+/** Asam urat: ambang berbeda per jenis kelamin. Tak ada red-flag akut. */
+function classifyUricAcid(value: number, sex: Sex, bands: Band[]): BiomarkerClassification {
+  const band = classifyValue(bands, "uric_acid", "uric_acid", value, sex);
+  if (!band) throw new Error("band asam urat tidak lengkap");
+  return {
+    biomarker: "uric_acid",
+    band: toRef(band),
+    zone: band.zone,
+    redFlag: false,
+    redFlagReason: null,
+    guidelineRef: band.guidelineRef,
+    components: [{ parameter: "uric_acid", value, band: toRef(band) }],
+  };
+}
+
 /** Panduan singkat per red-flag (deterministik, tampil bahkan offline). Bukan diagnosis. */
 export function redFlagGuidance(reason: RedFlagReason): { title: string; action: string } {
   switch (reason) {
@@ -181,6 +236,13 @@ export function redFlagGuidance(reason: RedFlagReason): { title: string; action:
  * produksi tetap tabel biomarker_bands (bisa diperbarui pasca review medis).
  * ⚠️ Ambang menunggu verifikasi dokter sebelum fitur dibuka ke pengguna nyata.
  */
+const GUIDELINE_REF: Record<Biomarker, string> = {
+  bp: "PERHI/InaSH 2021",
+  glucose: "PERKENI 2021",
+  lipid: "NCEP ATP III",
+  uric_acid: "Rujukan lab (perlu review)",
+};
+
 export const DEFAULT_BIOMARKER_BANDS: Band[] = [
   // A) Tekanan darah — PERHI/InaSH
   band("bp", "systolic", "optimal", "Optimal", "green", null, 120, 0, "mmHg"),
@@ -208,14 +270,37 @@ export const DEFAULT_BIOMARKER_BANDS: Band[] = [
   band("glucose", "hba1c", "normal", "Normal", "green", null, 5.7, 0, "%"),
   band("glucose", "hba1c", "predm", "Prediabetes", "yellow", 5.7, 6.5, 1, "%"),
   band("glucose", "hba1c", "dm", "Diabetes", "red", 6.5, null, 2, "%"),
+  // C) Lipid — NCEP ATP III (cermin seed migration 0011). ⚠️ perlu review dokter (V2).
+  band("lipid", "total_chol", "desirable", "Diinginkan", "green", null, 200, 0, "mg/dL"),
+  band("lipid", "total_chol", "borderline", "Batas Tinggi", "yellow", 200, 240, 1, "mg/dL"),
+  band("lipid", "total_chol", "high", "Tinggi", "red", 240, null, 2, "mg/dL"),
+  band("lipid", "ldl", "optimal", "Optimal", "green", null, 100, 0, "mg/dL"),
+  band("lipid", "ldl", "near_optimal", "Mendekati Optimal", "green", 100, 130, 1, "mg/dL"),
+  band("lipid", "ldl", "borderline", "Batas Tinggi", "yellow", 130, 160, 2, "mg/dL"),
+  band("lipid", "ldl", "high", "Tinggi", "orange", 160, 190, 3, "mg/dL"),
+  band("lipid", "ldl", "very_high", "Sangat Tinggi", "red", 190, null, 4, "mg/dL"),
+  band("lipid", "hdl", "low", "Rendah", "red", null, 40, 2, "mg/dL"),
+  band("lipid", "hdl", "borderline", "Batas", "yellow", 40, 60, 1, "mg/dL"),
+  band("lipid", "hdl", "optimal", "Baik", "green", 60, null, 0, "mg/dL"),
+  band("lipid", "tg", "normal", "Normal", "green", null, 150, 0, "mg/dL"),
+  band("lipid", "tg", "borderline", "Batas Tinggi", "yellow", 150, 200, 1, "mg/dL"),
+  band("lipid", "tg", "high", "Tinggi", "orange", 200, 500, 2, "mg/dL"),
+  band("lipid", "tg", "very_high", "Sangat Tinggi", "red", 500, null, 3, "mg/dL"),
+  // D) Asam urat — sadar-gender (cermin seed migration 0011). ⚠️ perlu review dokter (V2).
+  band("uric_acid", "uric_acid", "normal", "Normal", "green", null, 7.0, 0, "mg/dL", "male"),
+  band("uric_acid", "uric_acid", "high", "Tinggi", "red", 7.0, null, 1, "mg/dL", "male"),
+  band("uric_acid", "uric_acid", "normal", "Normal", "green", null, 6.0, 0, "mg/dL", "female"),
+  band("uric_acid", "uric_acid", "high", "Tinggi", "red", 6.0, null, 1, "mg/dL", "female"),
 ];
 
 function band(
   biomarker: Biomarker, parameter: string, bandKey: string, label: string,
   zone: Zone, minValue: number | null, maxValue: number | null, rank: number, unit: string,
+  sex?: Sex,
 ): Band {
   return {
     biomarker, parameter, bandKey, label, zone, minValue, maxValue, rank, unit,
-    guidelineRef: biomarker === "bp" ? "PERHI/InaSH 2021" : "PERKENI 2021",
+    sex: sex ?? null,
+    guidelineRef: GUIDELINE_REF[biomarker],
   };
 }
