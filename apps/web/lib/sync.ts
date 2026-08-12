@@ -3,6 +3,7 @@ import {
   db, type SyncTableName, type LocalHydrationLog, type LocalSleepLog, type LocalActivityLog,
   type LocalMoodLog, type LocalWeightLog, type LocalHabit, type LocalHabitCompletion,
   type LocalBiomarkerReading, type LocalMonitoredCondition,
+  type LocalFastingSettings, type LocalFastingDay,
 } from "./db";
 import { getSupabase, type PrimaryProfile } from "./supabase";
 
@@ -39,7 +40,8 @@ export async function getTargets(): Promise<{ hydrationMl: number; steps: number
 
 type AnyLocalRow =
   | LocalHydrationLog | LocalSleepLog | LocalActivityLog | LocalMoodLog | LocalWeightLog
-  | LocalHabit | LocalHabitCompletion | LocalBiomarkerReading | LocalMonitoredCondition;
+  | LocalHabit | LocalHabitCompletion | LocalBiomarkerReading | LocalMonitoredCondition
+  | LocalFastingSettings | LocalFastingDay;
 
 /** habits & monitored_conditions ber-idempoten lewat PK id (uuid client), bukan client_id. */
 const CONFLICT_KEY: Record<SyncTableName, string> = {
@@ -52,6 +54,8 @@ const CONFLICT_KEY: Record<SyncTableName, string> = {
   habit_completions: "profile_id,client_id",
   biomarker_readings: "profile_id,client_id",
   monitored_conditions: "id",
+  fasting_settings: "profile_id",       // satu baris per profil
+  fasting_days: "profile_id,date",      // satu baris per (profil, tanggal)
 };
 
 function toServerRow(table: SyncTableName, row: AnyLocalRow): Record<string, unknown> {
@@ -82,6 +86,23 @@ function toServerRow(table: SyncTableName, row: AnyLocalRow): Record<string, unk
     return {
       id: r.id, profile_id: r.profileId, condition: r.condition, status: r.status,
       since: r.since, note: r.note ?? null, created_at: r.createdAt, deleted_at: r.deletedAt,
+    };
+  }
+  if (table === "fasting_settings") {
+    const r = row as LocalFastingSettings;
+    return {
+      profile_id: r.profileId, ramadan_enabled: r.ramadanEnabled,
+      ramadan_start: r.ramadanStart, ramadan_end: r.ramadanEnd,
+      sunnah_schedules: r.sunnahSchedules, sahur_reminder_min: r.sahurReminderMin,
+      time_correction: r.timeCorrection, latitude: r.latitude, longitude: r.longitude,
+      medical_ack_at: r.medicalAckAt,
+    };
+  }
+  if (table === "fasting_days") {
+    const r = row as LocalFastingDay;
+    return {
+      profile_id: r.profileId, date: r.date, fasting_type: r.fastingType,
+      status: r.status, confirmed: r.confirmed,
     };
   }
   const base = { profile_id: (row as { profileId: string }).profileId, client_id: (row as { clientId: string }).clientId, deleted_at: (row as { deletedAt: string | null }).deletedAt };
@@ -175,6 +196,25 @@ function fromServerRow(table: SyncTableName, r: ServerRow): AnyLocalRow {
       createdAt: r.created_at, deletedAt: (r.deleted_at as string | null) ?? null,
     } as LocalMonitoredCondition;
   }
+  if (table === "fasting_settings") {
+    return {
+      profileId: r.profile_id, ramadanEnabled: !!r.ramadan_enabled,
+      ramadanStart: (r.ramadan_start as string | null) ?? null,
+      ramadanEnd: (r.ramadan_end as string | null) ?? null,
+      sunnahSchedules: (r.sunnah_schedules as string[]) ?? [],
+      sahurReminderMin: (r.sahur_reminder_min as number) ?? 60,
+      timeCorrection: (r.time_correction as Record<string, number>) ?? {},
+      latitude: (r.latitude as number | null) ?? null,
+      longitude: (r.longitude as number | null) ?? null,
+      medicalAckAt: (r.medical_ack_at as string | null) ?? null,
+    } as LocalFastingSettings;
+  }
+  if (table === "fasting_days") {
+    return {
+      id: `${r.profile_id}:${r.date}`, profileId: r.profile_id, date: r.date as string,
+      fastingType: r.fasting_type, status: r.status, confirmed: !!r.confirmed,
+    } as LocalFastingDay;
+  }
   const base = {
     clientId: r.client_id as string,
     profileId: r.profile_id as string,
@@ -201,6 +241,7 @@ const SYNC_TABLES: SyncTableName[] = [
   "hydration_logs", "sleep_logs", "activity_logs", "mood_logs", "weight_logs",
   "habits", "habit_completions", // habits sebelum completions (FK habit_id)
   "biomarker_readings", "monitored_conditions",
+  "fasting_settings", "fasting_days",
 ];
 const PULL_PAGE = 500;
 let pulling = false;
@@ -245,8 +286,12 @@ async function pullTable(table: SyncTableName, profileId: string): Promise<void>
     const pendingIds = new Set(
       (await db.outbox.where("table").equals(table).toArray()).map((e) => e.clientId),
     );
-    const idKeyed = table === "habits" || table === "monitored_conditions";
-    const serverKeyOf = (r: ServerRow) => (idKeyed ? (r.id as string) : (r.client_id as string));
+    const serverKeyOf = (r: ServerRow): string => {
+      if (table === "habits" || table === "monitored_conditions") return r.id as string;
+      if (table === "fasting_settings") return r.profile_id as string;      // kunci Dexie = profileId
+      if (table === "fasting_days") return `${r.profile_id}:${r.date}`;      // kunci Dexie = `${profileId}:${date}`
+      return r.client_id as string;
+    };
     const localRows = rows.filter((r) => !pendingIds.has(serverKeyOf(r))).map((r) => fromServerRow(table, r));
     // union EntityTable tidak punya signature bulkPut gabungan → cast struktural
     const target = db[table] as unknown as { bulkPut(items: AnyLocalRow[]): Promise<unknown> };

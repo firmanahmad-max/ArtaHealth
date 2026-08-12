@@ -8,6 +8,8 @@ import { db, startOfTodayIso } from "@/lib/db";
 import { getSupabase } from "@/lib/supabase";
 import { QuickLogSheet } from "@/components/QuickLogSheet";
 import { AppNav } from "@/components/AppNav";
+import { FastingToggle } from "@/components/FastingToggle";
+import { featureRamadan } from "@/lib/features";
 
 const DAYS_SHOWN = 14; // virtual list + infinite scroll menyusul saat data membesar (spec §2.5)
 
@@ -146,7 +148,10 @@ export default function TimelinePage() {
               {mounted ? new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : " "}
             </p>
           </div>
-          <HealthRing score={todayScore} size={48} strokeWidth={5} showLabel={false} />
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {featureRamadan() && <FastingToggle />}
+            <HealthRing score={todayScore} size={48} strokeWidth={5} showLabel={false} />
+          </div>
         </header>
 
         <div role="tablist" aria-label="Filter jenis catatan" style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>

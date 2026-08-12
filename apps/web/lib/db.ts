@@ -84,8 +84,32 @@ export interface LocalMonitoredCondition {
   deletedAt: string | null;
 }
 
+/** Konfigurasi mode puasa — satu baris per profil (Fase 3). Idempoten via profileId. */
+export interface LocalFastingSettings {
+  profileId: string;
+  ramadanEnabled: boolean;
+  ramadanStart: string | null;   // "YYYY-MM-DD"
+  ramadanEnd: string | null;
+  sunnahSchedules: string[];
+  sahurReminderMin: number;
+  timeCorrection: Record<string, number>; // {imsak,maghrib,...} menit
+  latitude: number | null;
+  longitude: number | null;
+  medicalAckAt: string | null;
+}
+
+/** Status puasa per hari (Fase 3). Kunci `${profileId}:${date}`. TANPA alasan (privasi). */
+export interface LocalFastingDay {
+  id: string;                    // `${profileId}:${date}`
+  profileId: string;
+  date: string;                  // "YYYY-MM-DD" lokal
+  fastingType: string;           // ramadan|senin_kamis|…|qadha|nazar
+  status: "fasting" | "not_fasting";
+  confirmed: boolean;
+}
+
 export type LogTableName = "hydration_logs" | "sleep_logs" | "activity_logs" | "mood_logs" | "weight_logs";
-export type SyncTableName = LogTableName | "habits" | "habit_completions" | "biomarker_readings" | "monitored_conditions";
+export type SyncTableName = LogTableName | "habits" | "habit_completions" | "biomarker_readings" | "monitored_conditions" | "fasting_settings" | "fasting_days";
 
 export interface OutboxEntry {
   id?: number;
@@ -107,6 +131,8 @@ type ArtaDB = Dexie & {
   habit_completions: EntityTable<LocalHabitCompletion, "clientId">;
   biomarker_readings: EntityTable<LocalBiomarkerReading, "clientId">;
   monitored_conditions: EntityTable<LocalMonitoredCondition, "id">;
+  fasting_settings: EntityTable<LocalFastingSettings, "profileId">;
+  fasting_days: EntityTable<LocalFastingDay, "id">;
   outbox: EntityTable<OutboxEntry, "id">;
   meta: EntityTable<MetaEntry, "key">;
 };
@@ -134,6 +160,11 @@ db.version(3).stores({
 // v4 (Fase 2): kondisi dipantau — idempoten via id (pola habits)
 db.version(4).stores({
   monitored_conditions: "id, condition",
+});
+// v5 (Fase 3): mode puasa — settings singleton per profil, days per (profil,tanggal)
+db.version(5).stores({
+  fasting_settings: "profileId",
+  fasting_days: "id, [profileId+date]",
 });
 
 /** Awal hari lokal perangkat (ISO) — batas "hari ini" untuk skor & dashboard. */

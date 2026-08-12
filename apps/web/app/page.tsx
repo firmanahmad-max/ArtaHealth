@@ -13,9 +13,13 @@ import { HabitCard } from "@/components/HabitCard";
 import { InsightCard } from "@/components/InsightCard";
 import { PushToggle } from "@/components/PushToggle";
 import { RiskPanelCard } from "@/components/RiskPanelCard";
-import { featureBiomarker } from "@/lib/features";
+import { RamadanHeader } from "@/components/RamadanHeader";
+import { FastingToggle } from "@/components/FastingToggle";
+import { ImsakiyahCard } from "@/components/ImsakiyahCard";
+import { featureBiomarker, featureRamadan } from "@/lib/features";
 import { isScheduledOn, isoWeekdayOf } from "@arta/core";
 import { todayKey } from "@/lib/habits";
+import { isFastingToday } from "@/lib/fasting";
 import { useMounted } from "@/lib/useMounted";
 
 const MOOD_EMOJI: Record<number, string> = { 1: "😞", 2: "😕", 3: "😐", 4: "🙂", 5: "😄" };
@@ -107,7 +111,18 @@ export default function Dashboard() {
     },
     targets ?? { hydrationMl: 2500, steps: 8000 },
   );
-  const { score } = computeHealthScore(inputs);
+  // Mode Ramadan: hari puasa → normalisasi khusus (badge 🌙); sesi = jumlah log air
+  const fastingToday = useLiveQuery(() => isFastingToday(), []) ?? false;
+  const scored = computeHealthScore(
+    fastingToday && featureRamadan()
+      ? {
+          ...inputs, fasting: true,
+          hydration: inputs.hydration ? { ...inputs.hydration, sessions: hydration?.length ?? 0 } : undefined,
+        }
+      : inputs,
+  );
+  const { score } = scored;
+  const fastingContext = scored.breakdown.context === "fasting";
 
   const hasAny = (hydration?.length ?? 0) + (sleep?.length ?? 0) + (activity?.length ?? 0) + (mood?.length ?? 0) > 0;
   const checklist = [
@@ -132,10 +147,25 @@ export default function Dashboard() {
             <p style={{ fontSize: 12, color: "var(--ah-text-tertiary)" }}>{mounted ? greeting() : " "}</p>
             <h1 style={{ fontSize: 18, fontWeight: 700 }}>{displayName ? `Hai, ${displayName}` : "Hai"}</h1>
           </div>
-          {syncEnabled && <SyncBadge pending={pendingTables?.size ?? 0} online={online} />}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {featureRamadan() && <FastingToggle />}
+            {syncEnabled && <SyncBadge pending={pendingTables?.size ?? 0} online={online} />}
+          </div>
         </header>
 
-        <div style={{ background: "var(--ah-surface-1)", border: "1px solid var(--ah-border)", borderRadius: "var(--ah-r-card)", padding: 20, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+        {featureRamadan() && <RamadanHeader />}
+        {featureRamadan() && fastingToday && <ImsakiyahCard />}
+
+        <div style={{ position: "relative", background: "var(--ah-surface-1)", border: "1px solid var(--ah-border)", borderRadius: "var(--ah-r-card)", padding: 20, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+          {fastingContext && (
+            <span
+              title="Skor hari puasa — dikalibrasi khusus"
+              style={{ position: "absolute", top: 12, right: 14, fontSize: 18 }}
+              aria-label="Skor hari puasa dikalibrasi khusus"
+            >
+              🌙
+            </span>
+          )}
           {hasAny ? (
             <HealthRing score={score} />
           ) : (

@@ -7,11 +7,17 @@
 
 export interface DayInputs {
   sleep?: {
+    /** hari puasa: durasi AGREGAT semua sesi (malam + pasca-subuh + qailulah) */
     durationMin: number;
-    /** deviasi jam tidur vs rata-rata 7 hari (menit); opsional */
+    /** deviasi jam tidur vs baseline (7 hari normal / baseline Ramadan saat puasa); opsional */
     bedtimeDeviationMin?: number;
   };
-  hydration?: { intakeMl: number; targetMl: number };
+  hydration?: {
+    intakeMl: number;
+    targetMl: number;
+    /** jumlah sesi minum — hari puasa: ≥3 sesi (pola 2-4-2) memudahkan skor penuh */
+    sessions?: number;
+  };
   activity?: {
     /** boleh kosong bila user hanya mencatat durasi olahraga */
     steps?: number;
@@ -21,6 +27,12 @@ export interface DayInputs {
   };
   mood?: 1 | 2 | 3 | 4 | 5;
   habits?: { completed: number; total: number };
+  /**
+   * Hari puasa (fasting_days.status='fasting', addendum-ramadan §5): normalisasi
+   * sub-skor berubah (tidur rentang 6–9j agregat, hidrasi jendela+bonus distribusi,
+   * langkah ×0,7) — BOBOT TETAP. Hari not_fasting → biarkan false (normalisasi normal).
+   */
+  fasting?: boolean;
 }
 
 export interface ScoreBreakdown {
@@ -32,6 +44,8 @@ export interface ScoreBreakdown {
   habit: number | "no_data";
   /** sub-skor mentah 0–100 sebelum bobot */
   raw: Partial<Record<"sleep" | "hydration" | "activity" | "mood" | "habit", number>>;
+  /** "fasting" pada hari puasa → UI beri badge 🌙 & shading tren tahunan */
+  context?: "fasting";
 }
 
 export interface HealthScoreResult {
@@ -44,13 +58,15 @@ type Param = keyof typeof BASE_WEIGHTS;
 
 const clamp = (v: number, lo = 0, hi = 100) => Math.min(hi, Math.max(lo, v));
 
-/** 7–9 jam (420–540 mnt) = 100; penalti linear 0.4 poin/menit di luar rentang.
- *  Deviasi jam tidur >45 mnt → penalti hingga 20 poin. */
-export function sleepSubScore(durationMin: number, bedtimeDeviationMin?: number): number {
+/** Normal 7–9 jam (420–540 mnt) = 100; hari puasa rentang sehat 6–9 jam agregat
+ *  (batas bawah 360). Penalti linear 0,4 poin/menit di luar rentang. Deviasi jam
+ *  tidur >45 mnt → penalti hingga 20 poin (baseline dihitung upstream). */
+export function sleepSubScore(durationMin: number, bedtimeDeviationMin?: number, fasting = false): number {
+  const lowBound = fasting ? 360 : 420; // hari puasa: bangun sahur tak dihukum sbg kurang tidur
   let s: number;
-  if (durationMin >= 420 && durationMin <= 540) s = 100;
+  if (durationMin >= lowBound && durationMin <= 540) s = 100;
   else {
-    const outside = durationMin < 420 ? 420 - durationMin : durationMin - 540;
+    const outside = durationMin < lowBound ? lowBound - durationMin : durationMin - 540;
     s = clamp(100 - outside * 0.4);
   }
   if (bedtimeDeviationMin !== undefined && bedtimeDeviationMin > 45) {
@@ -59,13 +75,20 @@ export function sleepSubScore(durationMin: number, bedtimeDeviationMin?: number)
   return s;
 }
 
-export function hydrationSubScore(intakeMl: number, targetMl: number): number {
+/** Proporsional & di-cap 100. Hari puasa: intake tersebar ≥3 sesi (pola 2-4-2)
+ *  dapat bonus distribusi +10 → skor penuh lebih mudah tanpa menghukum single-dump. */
+export function hydrationSubScore(intakeMl: number, targetMl: number, fasting = false, sessions?: number): number {
   if (targetMl <= 0) return 0;
-  return clamp((intakeMl / targetMl) * 100);
+  let s = clamp((intakeMl / targetMl) * 100);
+  if (fasting && (sessions ?? 0) >= 3) s = clamp(s + 10);
+  return s;
 }
 
-export function activitySubScore(steps: number | undefined, stepTarget: number, exerciseMin?: number): number {
-  const stepScore = steps !== undefined ? (stepTarget > 0 ? clamp((steps / stepTarget) * 100) : 0) : undefined;
+/** Hari puasa: target langkah ×0,7 (aktivitas siang puasa dikalibrasi turun).
+ *  exerciseMin diasumsikan sudah difilter ke jendela aman oleh pemanggil. */
+export function activitySubScore(steps: number | undefined, stepTarget: number, exerciseMin?: number, fasting = false): number {
+  const effTarget = fasting ? stepTarget * 0.7 : stepTarget;
+  const stepScore = steps !== undefined ? (effTarget > 0 ? clamp((steps / effTarget) * 100) : 0) : undefined;
   const exScore = exerciseMin !== undefined ? clamp((exerciseMin / 22) * 100) : undefined;
   // hanya satu jenis data → pakai itu saja (tidak menghukum data yang tak dicatat)
   if (stepScore === undefined) return exScore ?? 0;
@@ -81,17 +104,19 @@ export function habitSubScore(completed: number, total: number): number {
 }
 
 export function computeHealthScore(inputs: DayInputs): HealthScoreResult {
+  const fasting = inputs.fasting === true;
   const raw: ScoreBreakdown["raw"] = {};
-  if (inputs.sleep) raw.sleep = sleepSubScore(inputs.sleep.durationMin, inputs.sleep.bedtimeDeviationMin);
-  if (inputs.hydration) raw.hydration = hydrationSubScore(inputs.hydration.intakeMl, inputs.hydration.targetMl);
+  if (inputs.sleep) raw.sleep = sleepSubScore(inputs.sleep.durationMin, inputs.sleep.bedtimeDeviationMin, fasting);
+  if (inputs.hydration) raw.hydration = hydrationSubScore(inputs.hydration.intakeMl, inputs.hydration.targetMl, fasting, inputs.hydration.sessions);
   if (inputs.activity && (inputs.activity.steps !== undefined || inputs.activity.exerciseMin !== undefined))
-    raw.activity = activitySubScore(inputs.activity.steps, inputs.activity.stepTarget, inputs.activity.exerciseMin);
+    raw.activity = activitySubScore(inputs.activity.steps, inputs.activity.stepTarget, inputs.activity.exerciseMin, fasting);
   if (inputs.mood !== undefined) raw.mood = moodSubScore(inputs.mood);
   if (inputs.habits) raw.habit = habitSubScore(inputs.habits.completed, inputs.habits.total);
 
   const present = (Object.keys(raw) as Param[]).filter((k) => raw[k] !== undefined);
   const breakdown: ScoreBreakdown = {
     sleep: "no_data", hydration: "no_data", activity: "no_data", mood: "no_data", habit: "no_data", raw,
+    ...(fasting ? { context: "fasting" as const } : {}),
   };
   if (present.length === 0) return { score: 0, breakdown };
 
