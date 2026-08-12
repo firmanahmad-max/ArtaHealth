@@ -2,7 +2,7 @@
 import {
   classifyBiomarker, DEFAULT_BIOMARKER_BANDS,
   biomarkerReadingSchema,
-  type BiomarkerClassification, type GlucoseContext,
+  type BiomarkerClassification, type GlucoseContext, type Sex,
 } from "@arta/core";
 import { db, type LocalBiomarkerReading } from "./db";
 import { flushOutbox, getActiveProfileId } from "./sync";
@@ -69,6 +69,50 @@ export async function logGlucose(
   return { clientId, classification };
 }
 
+/** Simpan panel lipid (mg/dL). Minimal satu nilai; klasifikasi = kategori terburuk. */
+export async function logLipid(
+  vals: { totalChol?: number; ldl?: number; hdl?: number; tg?: number }, note?: string,
+): Promise<BiomarkerLogResult> {
+  const clientId = crypto.randomUUID();
+  const profileId = await getActiveProfileId();
+  const measuredAt = new Date();
+  biomarkerReadingSchema.parse({ profileId, clientId, measuredAt, biomarker: "lipid", ...vals, note });
+
+  const classification = classifyBiomarker({ biomarker: "lipid", ...vals }, DEFAULT_BIOMARKER_BANDS);
+  const values: Record<string, number> = {};
+  for (const [k, v] of Object.entries(vals)) if (typeof v === "number") values[k] = v;
+  const row: LocalBiomarkerReading = {
+    clientId, profileId, biomarker: "lipid", context: null,
+    values, classification, measuredAt: measuredAt.toISOString(), note, deletedAt: null,
+  };
+  await db.transaction("rw", db.biomarker_readings, db.outbox, async () => {
+    await db.biomarker_readings.put(row);
+    await enqueue(clientId);
+  });
+  void flushOutbox();
+  return { clientId, classification };
+}
+
+/** Simpan asam urat (mg/dL). Ambang berbeda per jenis kelamin (disimpan di context). */
+export async function logUricAcid(value: number, sex: Sex, note?: string): Promise<BiomarkerLogResult> {
+  const clientId = crypto.randomUUID();
+  const profileId = await getActiveProfileId();
+  const measuredAt = new Date();
+  biomarkerReadingSchema.parse({ profileId, clientId, measuredAt, biomarker: "uric_acid", value, sex, note });
+
+  const classification = classifyBiomarker({ biomarker: "uric_acid", value, sex }, DEFAULT_BIOMARKER_BANDS);
+  const row: LocalBiomarkerReading = {
+    clientId, profileId, biomarker: "uric_acid", context: sex,
+    values: { value }, classification, measuredAt: measuredAt.toISOString(), note, deletedAt: null,
+  };
+  await db.transaction("rw", db.biomarker_readings, db.outbox, async () => {
+    await db.biomarker_readings.put(row);
+    await enqueue(clientId);
+  });
+  void flushOutbox();
+  return { clientId, classification };
+}
+
 /** Tombstone (undo/hapus) — dipropagasi ke server seperti log lain. */
 export async function undoBiomarker(clientId: string): Promise<void> {
   await db.transaction("rw", db.biomarker_readings, db.outbox, async () => {
@@ -90,7 +134,7 @@ export async function latestReading(biomarker: "bp" | "glucose"): Promise<LocalB
 
 /** Riwayat suatu biomarker (terbaru dulu), untuk trend/daftar. */
 export async function readingHistory(
-  biomarker: "bp" | "glucose", limit = 30,
+  biomarker: LocalBiomarkerReading["biomarker"], limit = 30,
 ): Promise<LocalBiomarkerReading[]> {
   const rows = await db.biomarker_readings
     .where("[biomarker+measuredAt]")

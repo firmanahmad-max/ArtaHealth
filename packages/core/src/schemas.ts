@@ -61,6 +61,26 @@ export const biomarkerReadingSchema = z
       context: z.enum(["gdp", "gds", "pp2", "hba1c"]),
       value: z.number(),
     }),
+    z.object({
+      profileId: z.string().uuid(),
+      clientId: z.string().min(8).max(64),
+      measuredAt: z.coerce.date(),
+      note: z.string().max(500).optional(),
+      biomarker: z.literal("lipid"),
+      totalChol: z.number().min(50).max(1000).optional(),
+      ldl: z.number().min(20).max(600).optional(),
+      hdl: z.number().min(10).max(200).optional(),
+      tg: z.number().min(20).max(2000).optional(),
+    }),
+    z.object({
+      profileId: z.string().uuid(),
+      clientId: z.string().min(8).max(64),
+      measuredAt: z.coerce.date(),
+      note: z.string().max(500).optional(),
+      biomarker: z.literal("uric_acid"),
+      value: z.number().min(1).max(30),
+      sex: z.enum(["male", "female"]),
+    }),
   ])
   .refine(
     (v) => v.biomarker !== "bp" || v.systolic > v.diastolic,
@@ -72,6 +92,11 @@ export const biomarkerReadingSchema = z
       v.biomarker !== "glucose" ||
       (v.context === "hba1c" ? v.value >= 3 && v.value <= 20 : v.value >= 20 && v.value <= 1000),
     { message: "nilai gula darah di luar rentang wajar" },
+  )
+  .refine(
+    // panel lipid wajib punya minimal satu nilai
+    (v) => v.biomarker !== "lipid" || v.totalChol != null || v.ldl != null || v.hdl != null || v.tg != null,
+    { message: "isi minimal satu nilai lipid" },
   );
 
 export type BiomarkerReadingInput = z.infer<typeof biomarkerReadingSchema>;

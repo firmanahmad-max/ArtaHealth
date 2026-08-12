@@ -36,7 +36,8 @@ export function BiomarkerTrendChart({
   const values = points.map((p) => p.value);
   const dataMin = Math.min(...values);
   const dataMax = Math.max(...values);
-  const pad = Math.max(5, (dataMax - dataMin) * 0.18);
+  // floor pad relatif thd besaran nilai: asam urat (satu digit) vs TD (ratusan)
+  const pad = Math.max((dataMax - dataMin) * 0.18, Math.abs(dataMax) * 0.06, 1);
   const yMin = dataMin - pad;
   const yMax = dataMax + pad;
 

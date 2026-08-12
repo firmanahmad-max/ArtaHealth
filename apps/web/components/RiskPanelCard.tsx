@@ -6,14 +6,13 @@ import {
 } from "@arta/core";
 import { db, type LocalBiomarkerReading } from "@/lib/db";
 import { asClassification } from "@/lib/biomarker";
-import { monitoredSet, setMonitored, CONDITION_META } from "@/lib/conditions";
+import { monitoredSet, setMonitored, CONDITION_META, type MonitoredCondition } from "@/lib/conditions";
 import { BiomarkerTrendChart, type TrendPoint } from "./BiomarkerTrendChart";
 
 /**
- * Risk Panel (Fase 2 · addendum §2.4) — TERPISAH dari Health Score.
- * Klasifikasi TD & gula darah terbaru vs ambang guideline (deterministik) + tren
- * pita-zona + kartu red-flag untuk SETIAP kegawatan. Menyatakan kondisi yang
- * dipantau membuat panel proaktif (baris muncul walau belum ada data).
+ * Risk Panel (Fase 2 · addendum §2.4) — TERPISAH dari Health Score. Empat
+ * biomarker (TD, gula, lipid, asam urat) vs ambang guideline (deterministik),
+ * tren pita-zona, kartu red-flag per kegawatan, dan pantauan proaktif.
  * Alat edukasi/skrining — BUKAN diagnosis. Dirender hanya di balik feature flag.
  */
 
@@ -27,52 +26,47 @@ const ZONE_COLOR: Record<Zone, string> = {
 const GLUCOSE_CONTEXT_LABEL: Record<string, string> = {
   gdp: "Puasa", gds: "Sewaktu", pp2: "2 jam", hba1c: "HbA1c",
 };
-
-const bandsFor = (biomarker: string, parameter: string): Band[] =>
-  DEFAULT_BIOMARKER_BANDS.filter((b) => b.biomarker === biomarker && b.parameter === parameter);
-
-function formatMeasured(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("id-ID", { day: "numeric", month: "short" }) +
-    " · " + d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
-}
-const shortDate = (iso: string) => new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "short" });
-
-const history = async (biomarker: "bp" | "glucose"): Promise<LocalBiomarkerReading[]> => {
-  const rows = await db.biomarker_readings.where("[biomarker+measuredAt]")
-    .between([biomarker, ""], [biomarker, "￿"]).toArray();
-  return rows.filter((r) => !r.deletedAt);
+const LIPID_PARAM_LABEL: Record<string, string> = {
+  total_chol: "Total", ldl: "LDL", hdl: "HDL", tg: "TG",
 };
 
+const MARKERS: { biomarker: LocalBiomarkerReading["biomarker"]; condition: MonitoredCondition; icon: string; name: string }[] = [
+  { biomarker: "bp", condition: "hypertension", icon: "🫀", name: "Tekanan Darah" },
+  { biomarker: "glucose", condition: "diabetes", icon: "🩸", name: "Gula Darah" },
+  { biomarker: "lipid", condition: "dyslipidemia", icon: "🧈", name: "Profil Lipid" },
+  { biomarker: "uric_acid", condition: "hyperuricemia", icon: "🦴", name: "Asam Urat" },
+];
+
+const bandsFor = (biomarker: string, parameter: string, sex?: string): Band[] =>
+  DEFAULT_BIOMARKER_BANDS.filter((b) => b.biomarker === biomarker && b.parameter === parameter && (!sex || b.sex === sex));
+
+const shortDate = (iso: string) => new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "short" });
+function formatMeasured(iso: string): string {
+  const d = new Date(iso);
+  return shortDate(iso) + " · " + d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+}
+
 export function RiskPanelCard({ onLog }: { onLog: () => void }) {
-  const bpRows = useLiveQuery(() => history("bp"), []);
-  const glucoseRows = useLiveQuery(() => history("glucose"), []);
+  const rows = useLiveQuery(async () => {
+    const all = await db.biomarker_readings.orderBy("measuredAt").toArray();
+    return all.filter((r) => !r.deletedAt);
+  }, []);
   const monitored = useLiveQuery(() => monitoredSet(), []);
 
-  if (bpRows === undefined || glucoseRows === undefined || monitored === undefined) return null;
+  if (rows === undefined || monitored === undefined) return null;
 
-  const latestBp = bpRows.at(-1) ?? null;
-  const latestGlucose = glucoseRows.at(-1) ?? null;
-  const bpClass = latestBp ? asClassification(latestBp.classification) : null;
-  const glucoseClass = latestGlucose ? asClassification(latestGlucose.classification) : null;
+  const grouped = new Map<string, LocalBiomarkerReading[]>();
+  for (const r of rows) (grouped.get(r.biomarker) ?? grouped.set(r.biomarker, []).get(r.biomarker)!).push(r);
 
-  const redFlags = [bpClass, glucoseClass].filter(
-    (c): c is BiomarkerClassification => !!c?.redFlag && !!c.redFlagReason,
-  );
-
-  const bpMonitored = monitored.has("hypertension");
-  const glucoseMonitored = monitored.has("diabetes");
-  const showBp = !!latestBp || bpMonitored;
-  const showGlucose = !!latestGlucose || glucoseMonitored;
-  const empty = !showBp && !showGlucose;
-  const guidelineRef = bpClass?.guidelineRef ?? glucoseClass?.guidelineRef;
-
-  const glucoseCtx = latestGlucose?.context ?? null;
-  const glucoseTrend: TrendPoint[] = glucoseCtx
-    ? glucoseRows.filter((r) => r.context === glucoseCtx)
-        .map((r) => ({ value: r.values.value!, label: shortDate(r.measuredAt) }))
-    : [];
-  const bpTrend: TrendPoint[] = bpRows.map((r) => ({ value: r.values.systolic!, label: shortDate(r.measuredAt) }));
+  const shown = MARKERS.filter((m) => grouped.has(m.biomarker) || monitored.has(m.condition));
+  const redFlags: BiomarkerClassification[] = [];
+  for (const m of MARKERS) {
+    const cls = asClassification(grouped.get(m.biomarker)?.at(-1)?.classification);
+    if (cls?.redFlag && cls.redFlagReason) redFlags.push(cls);
+  }
+  const guidelineRef = shown
+    .map((m) => asClassification(grouped.get(m.biomarker)?.at(-1)?.classification)?.guidelineRef)
+    .find(Boolean);
 
   return (
     <div style={card}>
@@ -81,45 +75,40 @@ export function RiskPanelCard({ onLog }: { onLog: () => void }) {
         <button onClick={onLog} style={addBtn}>+ Ukur</button>
       </div>
 
-      {empty ? (
+      {shown.length === 0 ? (
         <p style={{ fontSize: 12, color: "var(--ah-text-secondary)", lineHeight: 1.5 }}>
-          Pantau tekanan darah &amp; gula darah untuk deteksi dini. Pilih yang ingin Anda pantau di bawah, atau langsung catat hasil ukur.
+          Pantau biomarker untuk deteksi dini. Pilih yang ingin Anda pantau di bawah, atau langsung catat hasil ukur.
         </p>
       ) : (
         <>
           {redFlags.map((c) => <RedFlagBanner key={c.redFlagReason} classification={c} />)}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {showBp && (latestBp && bpClass ? (
-              <div style={marker}>
-                <MarkerRow
-                  icon="🫀" name="Tekanan Darah"
-                  value={`${latestBp.values.systolic}/${latestBp.values.diastolic}`}
-                  unit="mmHg" classification={bpClass} sub={formatMeasured(latestBp.measuredAt)}
-                />
-                <BiomarkerTrendChart points={bpTrend} bands={bandsFor("bp", "systolic")} unit="mmHg" caption="Tren sistolik" />
-              </div>
-            ) : (
-              <NudgeRow icon="🫀" name="Tekanan Darah" hint={CONDITION_META.hypertension.hint} onLog={onLog} />
-            ))}
-
-            {showGlucose && (latestGlucose && glucoseClass && glucoseCtx ? (
-              <div style={marker}>
-                <MarkerRow
-                  icon="🩸" name={`Gula Darah · ${GLUCOSE_CONTEXT_LABEL[glucoseCtx] ?? ""}`}
-                  value={`${latestGlucose.values.value}`}
-                  unit={glucoseClass.band.unit} classification={glucoseClass} sub={formatMeasured(latestGlucose.measuredAt)}
-                />
-                <BiomarkerTrendChart points={glucoseTrend} bands={bandsFor("glucose", glucoseCtx)} unit={glucoseClass.band.unit} caption={`Tren ${GLUCOSE_CONTEXT_LABEL[glucoseCtx] ?? ""}`} />
-              </div>
-            ) : (
-              <NudgeRow icon="🩸" name="Gula Darah" hint={CONDITION_META.diabetes.hint} onLog={onLog} />
-            ))}
+            {shown.map((mk) => {
+              const list = grouped.get(mk.biomarker) ?? [];
+              const latest = list.at(-1) ?? null;
+              const cls = latest ? asClassification(latest.classification) : null;
+              if (!latest || !cls) {
+                return <NudgeRow key={mk.biomarker} icon={mk.icon} name={mk.name} hint={CONDITION_META[mk.condition].hint} onLog={onLog} />;
+              }
+              return (
+                <div key={mk.biomarker} style={marker}>
+                  {mk.biomarker === "lipid"
+                    ? <LipidRow icon={mk.icon} name={mk.name} classification={cls} sub={formatMeasured(latest.measuredAt)} />
+                    : (
+                      <>
+                        <MarkerRow icon={mk.icon} name={markerName(mk, latest)} value={displayValue(mk.biomarker, latest)} unit={cls.band.unit} classification={cls} sub={formatMeasured(latest.measuredAt)} />
+                        <Trend biomarker={mk.biomarker} list={list} latest={latest} unit={cls.band.unit} />
+                      </>
+                    )}
+                </div>
+              );
+            })}
           </div>
 
           {guidelineRef && (
             <p style={disclaimer}>
-              Klasifikasi mengikuti {guidelineRef}. Ini skrining, bukan diagnosis — konfirmasikan ke tenaga medis.
+              Klasifikasi mengikuti {guidelineRef} (dan pedoman terkait). Ini skrining, bukan diagnosis — konfirmasikan ke tenaga medis.
             </p>
           )}
         </>
@@ -130,11 +119,63 @@ export function RiskPanelCard({ onLog }: { onLog: () => void }) {
   );
 }
 
+function markerName(mk: { biomarker: string; name: string }, latest: LocalBiomarkerReading): string {
+  if (mk.biomarker === "glucose" && latest.context) return `${mk.name} · ${GLUCOSE_CONTEXT_LABEL[latest.context] ?? ""}`;
+  return mk.name;
+}
+function displayValue(biomarker: string, latest: LocalBiomarkerReading): string {
+  if (biomarker === "bp") return `${latest.values.systolic}/${latest.values.diastolic}`;
+  return `${latest.values.value}`;
+}
+
+function Trend({ biomarker, list, latest, unit }: { biomarker: string; list: LocalBiomarkerReading[]; latest: LocalBiomarkerReading; unit: string }) {
+  let points: TrendPoint[] = [];
+  let bands: Band[] = [];
+  let caption = "";
+  if (biomarker === "bp") {
+    points = list.map((r) => ({ value: r.values.systolic!, label: shortDate(r.measuredAt) }));
+    bands = bandsFor("bp", "systolic");
+    caption = "Tren sistolik";
+  } else if (biomarker === "glucose") {
+    const ctx = latest.context ?? "gds";
+    points = list.filter((r) => r.context === ctx).map((r) => ({ value: r.values.value!, label: shortDate(r.measuredAt) }));
+    bands = bandsFor("glucose", ctx);
+    caption = `Tren ${GLUCOSE_CONTEXT_LABEL[ctx] ?? ""}`;
+  } else if (biomarker === "uric_acid") {
+    const sex = latest.context ?? "male"; // sex disimpan di context
+    points = list.filter((r) => r.context === sex).map((r) => ({ value: r.values.value!, label: shortDate(r.measuredAt) }));
+    bands = bandsFor("uric_acid", "uric_acid", sex);
+    caption = "Tren asam urat";
+  }
+  return <BiomarkerTrendChart points={points} bands={bands} unit={unit} caption={caption} />;
+}
+
+function LipidRow({ icon, name, classification, sub }: { icon: string; name: string; classification: BiomarkerClassification; sub: string }) {
+  const color = ZONE_COLOR[classification.zone];
+  const breakdown = classification.components
+    .map((c) => `${LIPID_PARAM_LABEL[c.parameter] ?? c.parameter} ${c.value}`)
+    .join(" · ");
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <span style={{ fontSize: 20 }} aria-hidden>{icon}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ah-text-primary)" }}>{name}</p>
+        <p style={{ fontSize: 11, color: "var(--ah-text-tertiary)" }}>{breakdown}</p>
+        <p style={{ fontSize: 10, color: "var(--ah-text-tertiary)" }}>{sub}</p>
+      </div>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color, whiteSpace: "nowrap" }}>
+        <span aria-hidden style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
+        {classification.band.label}
+      </span>
+    </div>
+  );
+}
+
 function ConditionChooser({ monitored }: { monitored: Set<string> }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", borderTop: "1px solid var(--ah-border)", paddingTop: 10 }}>
       <span style={{ fontSize: 11, color: "var(--ah-text-tertiary)" }}>Pantau:</span>
-      {(["hypertension", "diabetes"] as const).map((cond) => {
+      {(Object.keys(CONDITION_META) as MonitoredCondition[]).map((cond) => {
         const meta = CONDITION_META[cond];
         const on = monitored.has(cond);
         return (
