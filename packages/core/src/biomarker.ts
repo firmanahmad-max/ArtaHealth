@@ -240,7 +240,7 @@ const GUIDELINE_REF: Record<Biomarker, string> = {
   bp: "PERHI/InaSH 2021",
   glucose: "PERKENI 2021",
   lipid: "NCEP ATP III",
-  uric_acid: "Rujukan lab (perlu review)",
+  uric_acid: "Nilai rujukan laboratorium",
 };
 
 export const DEFAULT_BIOMARKER_BANDS: Band[] = [
@@ -270,7 +270,7 @@ export const DEFAULT_BIOMARKER_BANDS: Band[] = [
   band("glucose", "hba1c", "normal", "Normal", "green", null, 5.7, 0, "%"),
   band("glucose", "hba1c", "predm", "Prediabetes", "yellow", 5.7, 6.5, 1, "%"),
   band("glucose", "hba1c", "dm", "Diabetes", "red", 6.5, null, 2, "%"),
-  // C) Lipid — NCEP ATP III (cermin seed migration 0011). ⚠️ perlu review dokter (V2).
+  // C) Lipid — NCEP ATP III (cermin seed migration 0011). Ambang V2 sudah direview dokter.
   band("lipid", "total_chol", "desirable", "Diinginkan", "green", null, 200, 0, "mg/dL"),
   band("lipid", "total_chol", "borderline", "Batas Tinggi", "yellow", 200, 240, 1, "mg/dL"),
   band("lipid", "total_chol", "high", "Tinggi", "red", 240, null, 2, "mg/dL"),
@@ -286,7 +286,7 @@ export const DEFAULT_BIOMARKER_BANDS: Band[] = [
   band("lipid", "tg", "borderline", "Batas Tinggi", "yellow", 150, 200, 1, "mg/dL"),
   band("lipid", "tg", "high", "Tinggi", "orange", 200, 500, 2, "mg/dL"),
   band("lipid", "tg", "very_high", "Sangat Tinggi", "red", 500, null, 3, "mg/dL"),
-  // D) Asam urat — sadar-gender (cermin seed migration 0011). ⚠️ perlu review dokter (V2).
+  // D) Asam urat — sadar-gender (cermin seed migration 0011). Ambang V2 sudah direview dokter.
   band("uric_acid", "uric_acid", "normal", "Normal", "green", null, 7.0, 0, "mg/dL", "male"),
   band("uric_acid", "uric_acid", "high", "Tinggi", "red", 7.0, null, 1, "mg/dL", "male"),
   band("uric_acid", "uric_acid", "normal", "Normal", "green", null, 6.0, 0, "mg/dL", "female"),
