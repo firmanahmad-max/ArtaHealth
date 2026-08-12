@@ -7,3 +7,4 @@ export * from "./habits";
 export * from "./ai/index.ts";
 export * from "./notifications.ts";
 export * from "./sentry-scrub.ts";
+export * from "./biomarker.ts";

@@ -4,12 +4,16 @@
  * tidak boleh bergantung pada kepatuhan model.
  *
  * - Input guard: red-flag darurat → template tindakan + 119, AI berhenti menganalisis.
+ *   Fase 2: juga menangkap angka biomarker berbahaya di teks (mis. "tensi 190/120",
+ *   "GDS 55"); ambang diimpor dari biomarker engine (sumber tunggal).
  * - Output guard: blokir jawaban yang mendiagnosis / menyebut dosis / menyuruh
  *   mulai-berhenti obat → diganti template aman.
  */
+import { RED_FLAG_THRESHOLDS, redFlagGuidance } from "../biomarker.ts";
 
 export type RedFlagCategory =
-  | "cardiac" | "stroke" | "breathing" | "bleeding" | "self_harm" | "consciousness" | "obstetric";
+  | "cardiac" | "stroke" | "breathing" | "bleeding" | "self_harm" | "consciousness" | "obstetric"
+  | "hypertensive_crisis" | "hypoglycemia" | "hyperglycemic_crisis";
 
 export interface RedFlagHit {
   category: RedFlagCategory;
@@ -52,6 +56,45 @@ export function detectRedFlags(text: string): RedFlagHit[] {
   for (const p of RED_FLAG_PATTERNS) {
     if (p.re.test(text)) hits.push({ category: p.category, pattern: p.label });
   }
+  for (const h of detectBiomarkerRedFlags(text)) hits.push(h);
+  return hits;
+}
+
+/**
+ * Biomarker input guard (Fase 2). Menangkap angka BAHAYA yang disebut pengguna
+ * di chat sebelum model diminta menganalisis — mis. "tensi 190/120", "GDS 55".
+ * Ambang bersumber tunggal dari RED_FLAG_THRESHOLDS di biomarker engine, agar
+ * konstanta keselamatan tidak terduplikasi (perubahan satu tempat berlaku semua).
+ *
+ * Sengaja konservatif: false-positive → sekadar mengarahkan ke 119 (aman),
+ * false-negative bisa fatal. Hanya menjadi hit bila engine juga menyatakan red-flag.
+ */
+export function detectBiomarkerRedFlags(text: string): RedFlagHit[] {
+  const hits: RedFlagHit[] = [];
+  // 1) Tekanan darah: "tensi 190/120", "TD 180 / 110", "tekanan darah 200 per 130"
+  //    Frasa pemicu opsional (angka sendirian tanpa konteks jangan dipicu → false-positive)
+  const bpRe = /\b(?:tensi|td|tek(?:anan)?\.?\s*darah|bp)\b[^0-9]{0,20}(\d{2,3})\s*(?:\/|per)\s*(\d{2,3})\b/gi;
+  for (const m of text.matchAll(bpRe)) {
+    const sys = Number(m[1]); const dia = Number(m[2]);
+    if (sys < 40 || sys > 300 || dia < 20 || dia > 200) continue; // buang angka mustahil
+    if (sys >= RED_FLAG_THRESHOLDS.bpSystolic || dia >= RED_FLAG_THRESHOLDS.bpDiastolic) {
+      hits.push({ category: "hypertensive_crisis", pattern: "krisis hipertensi" });
+      break;
+    }
+  }
+  // 2) Gula darah: "gula darah 55", "gds 320 mg/dl", "gula 45", "glukosa 380"
+  //    HbA1c (%) tidak akut → sengaja tak dicocokkan.
+  const glucoseRe = /\b(?:gula\s+darah|gula|gds|gdp|glukosa|blood\s+sugar)\b[^0-9]{0,20}(\d{2,3})\b(?!\s*%)/gi;
+  for (const m of text.matchAll(glucoseRe)) {
+    const v = Number(m[1]);
+    if (v < 20 || v > 1000) continue;
+    if (v < RED_FLAG_THRESHOLDS.glucoseLow) {
+      hits.push({ category: "hypoglycemia", pattern: "hipoglikemia" }); break;
+    }
+    if (v >= RED_FLAG_THRESHOLDS.glucoseHigh) {
+      hits.push({ category: "hyperglycemic_crisis", pattern: "krisis hiperglikemia" }); break;
+    }
+  }
   return hits;
 }
 
@@ -72,8 +115,21 @@ export function redFlagResponse(hits: RedFlagHit[]): string {
       "Saya di sini untuk hal-hal kebiasaan harian, tetapi untuk yang satu ini Anda layak didampingi manusia yang terlatih.",
     ].join("\n");
   }
+  // Hipoglikemia butuh instruksi berbeda ("15 gram gula cepat", bukan 119 saja);
+  // reuse redFlagGuidance dari engine agar teks konsisten dengan Risk Panel.
+  const hypo = hits.some((h) => h.category === "hypoglycemia");
+  if (hypo) {
+    const g = redFlagGuidance("hipoglikemia");
+    return [
+      `${g.title}.`,
+      "",
+      g.action,
+      "",
+      "Saya berhenti menganalisis di sini demi keselamatan Anda.",
+    ].join("\n");
+  }
   return [
-    "Gejala yang Anda sebutkan perlu penanganan medis segera — ini bukan sesuatu yang aman dianalisis aplikasi.",
+    "Gejala atau angka yang Anda sebutkan perlu penanganan medis segera — ini bukan sesuatu yang aman dianalisis aplikasi.",
     "",
     "Hubungi 119 (Ambulans Gawat Darurat) atau pergi ke IGD terdekat sekarang.",
     "Bila memungkinkan, jangan berkendara sendiri dan mintalah seseorang menemani Anda.",

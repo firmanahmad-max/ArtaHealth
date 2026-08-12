@@ -12,6 +12,8 @@ import { AppNav } from "@/components/AppNav";
 import { HabitCard } from "@/components/HabitCard";
 import { InsightCard } from "@/components/InsightCard";
 import { PushToggle } from "@/components/PushToggle";
+import { RiskPanelCard } from "@/components/RiskPanelCard";
+import { featureBiomarker } from "@/lib/features";
 import { isScheduledOn, isoWeekdayOf } from "@arta/core";
 import { todayKey } from "@/lib/habits";
 import { useMounted } from "@/lib/useMounted";
@@ -197,6 +199,8 @@ export default function Dashboard() {
         </div>
 
         <InsightCard />
+
+        {featureBiomarker() && <RiskPanelCard onLog={() => setSheetOpen(true)} />}
 
         <HabitCard />
 

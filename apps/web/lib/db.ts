@@ -58,8 +58,34 @@ export interface LocalHabitCompletion {
   deletedAt: string | null;
 }
 
+/** Pembacaan biomarker (Fase 2). classification = hasil engine deterministik di-cache. */
+export interface LocalBiomarkerReading {
+  clientId: string; profileId: string;
+  biomarker: "bp" | "glucose";
+  /** konteks glukosa (gdp/gds/pp2/hba1c); null untuk tekanan darah */
+  context: string | null;
+  /** {systolic,diastolic} untuk bp · {value} untuk glukosa */
+  values: Record<string, number>;
+  /** BiomarkerClassification dari @arta/core (di-cache utk tampil cepat/offline) */
+  classification: unknown | null;
+  measuredAt: string; note?: string;
+  deletedAt: string | null;
+}
+
+/** Kondisi yang dipantau pengguna (Fase 2). Idempoten via PK id (pola habits). */
+export interface LocalMonitoredCondition {
+  id: string;
+  profileId: string;
+  condition: "hypertension" | "diabetes" | "dyslipidemia" | "hyperuricemia";
+  status: "monitoring" | "controlled" | "resolved";
+  since: string | null;
+  note?: string;
+  createdAt: string;
+  deletedAt: string | null;
+}
+
 export type LogTableName = "hydration_logs" | "sleep_logs" | "activity_logs" | "mood_logs" | "weight_logs";
-export type SyncTableName = LogTableName | "habits" | "habit_completions";
+export type SyncTableName = LogTableName | "habits" | "habit_completions" | "biomarker_readings" | "monitored_conditions";
 
 export interface OutboxEntry {
   id?: number;
@@ -79,6 +105,8 @@ type ArtaDB = Dexie & {
   weight_logs: EntityTable<LocalWeightLog, "clientId">;
   habits: EntityTable<LocalHabit, "id">;
   habit_completions: EntityTable<LocalHabitCompletion, "clientId">;
+  biomarker_readings: EntityTable<LocalBiomarkerReading, "clientId">;
+  monitored_conditions: EntityTable<LocalMonitoredCondition, "id">;
   outbox: EntityTable<OutboxEntry, "id">;
   meta: EntityTable<MetaEntry, "key">;
 };
@@ -98,6 +126,14 @@ db.version(1).stores({
 db.version(2).stores({
   habits: "id, isActive",
   habit_completions: "clientId, date, habitId",
+});
+// v3 (Fase 2): biomarker — index [biomarker+measuredAt] melayani query trend per jenis
+db.version(3).stores({
+  biomarker_readings: "clientId, measuredAt, biomarker, [biomarker+measuredAt]",
+});
+// v4 (Fase 2): kondisi dipantau — idempoten via id (pola habits)
+db.version(4).stores({
+  monitored_conditions: "id, condition",
 });
 
 /** Awal hari lokal perangkat (ISO) — batas "hari ini" untuk skor & dashboard. */
