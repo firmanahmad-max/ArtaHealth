@@ -55,6 +55,42 @@ describe("red-flag detector (input guard)", () => {
   });
 });
 
+describe("input guard biomarker (Fase 2)", () => {
+  it("angka tensi krisis di chat langsung memicu red-flag", () => {
+    const cases = ["tensi 190/120", "TD 180/110 tadi pagi", "tekanan darah 200 per 130", "bp 185/95"];
+    for (const t of cases) {
+      const hits = detectRedFlags(t);
+      expect(hits.find((h) => h.category === "hypertensive_crisis"), `gagal: ${t}`).toBeTruthy();
+    }
+  });
+  it("angka tensi tepat di ambang & tepat di bawah", () => {
+    expect(detectRedFlags("tensi 180/100")).toHaveLength(1);   // sys ≥180 → hit
+    expect(detectRedFlags("tensi 170/110")).toHaveLength(1);   // dia ≥110 → hit
+    expect(detectRedFlags("tensi 179/109")).toHaveLength(0);   // di bawah → aman
+  });
+  it("gula darah rendah/kritis di chat memicu, HbA1c tidak", () => {
+    expect(detectRedFlags("gula darah saya 55 tadi")[0]?.category).toBe("hypoglycemia");
+    expect(detectRedFlags("GDS 320 mg/dL")[0]?.category).toBe("hyperglycemic_crisis");
+    expect(detectRedFlags("glukosa 45")[0]?.category).toBe("hypoglycemia");
+    expect(detectRedFlags("HbA1c saya 8.5 %")).toHaveLength(0); // % → tak akut
+  });
+  it("angka telanjang tanpa konteks TIDAK dianggap tensi/gula (hindari false-positive)", () => {
+    expect(detectRedFlags("saya lari 190 meter tadi")).toHaveLength(0);
+    expect(detectRedFlags("berat saya 55 kg")).toHaveLength(0);
+    expect(detectRedFlags("umur saya 45 tahun")).toHaveLength(0);
+  });
+  it("respons hipoglikemia memakai panduan spesifik (bukan 119 saja)", () => {
+    const res = redFlagResponse(detectRedFlags("gula darah saya 55"));
+    expect(res).toMatch(/15 gram|gula cepat/i);
+    expect(res).toMatch(/berhenti menganalisis/i);
+  });
+  it("respons krisis hipertensi mengarahkan ke 119", () => {
+    const res = redFlagResponse(detectRedFlags("tensi 200/130"));
+    expect(res).toContain("119");
+    expect(res).toMatch(/berhenti menganalisis/i);
+  });
+});
+
 describe("output guard", () => {
   it("memblokir diagnosis, dosis, dan instruksi obat", () => {
     expect(isUnsafeOutput("Sepertinya Anda menderita diabetes tipe 2.")).toBe(true);
