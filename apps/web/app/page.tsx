@@ -15,6 +15,7 @@ import { PushToggle } from "@/components/PushToggle";
 import { RiskPanelCard } from "@/components/RiskPanelCard";
 import { RamadanHeader } from "@/components/RamadanHeader";
 import { FastingToggle } from "@/components/FastingToggle";
+import { ImsakiyahCard } from "@/components/ImsakiyahCard";
 import { featureBiomarker, featureRamadan } from "@/lib/features";
 import { isScheduledOn, isoWeekdayOf } from "@arta/core";
 import { todayKey } from "@/lib/habits";
@@ -153,6 +154,7 @@ export default function Dashboard() {
         </header>
 
         {featureRamadan() && <RamadanHeader />}
+        {featureRamadan() && fastingToday && <ImsakiyahCard />}
 
         <div style={{ position: "relative", background: "var(--ah-surface-1)", border: "1px solid var(--ah-border)", borderRadius: "var(--ah-r-card)", padding: 20, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
           {fastingContext && (

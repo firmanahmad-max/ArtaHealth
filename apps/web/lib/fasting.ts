@@ -81,6 +81,31 @@ export async function isFastingToday(): Promise<boolean> {
   return (await fastingStatusFor(todayKey()))?.status === "fasting";
 }
 
+export async function setLocation(latitude: number, longitude: number): Promise<void> {
+  await saveFastingSettings({ latitude, longitude });
+}
+
+/** Gabung koreksi ihtiyati ±menit per waktu (menutup selisih vs Kemenag, §10). */
+export async function setTimeCorrection(patch: Record<string, number>): Promise<void> {
+  const s = await getFastingSettings();
+  await saveFastingSettings({ timeCorrection: { ...s.timeCorrection, ...patch } });
+}
+
+/** Ambil koordinat perangkat via Geolocation API (izin diminta browser). */
+export function captureGeolocation(): Promise<{ latitude: number; longitude: number }> {
+  return new Promise((resolve, reject) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      reject(new Error("Geolokasi tidak didukung perangkat ini"));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+      (err) => reject(err),
+      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 600_000 },
+    );
+  });
+}
+
 /** Set status puasa hari ini (toggle diam — tanpa alasan, §2 aturan 2). */
 export async function setTodayFasting(status: "fasting" | "not_fasting", fastingType = "ramadan"): Promise<void> {
   const profileId = await getActiveProfileId();
