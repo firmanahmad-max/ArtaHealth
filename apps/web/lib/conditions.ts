@@ -10,10 +10,11 @@ import { flushOutbox, getActiveProfileId } from "./sync";
 
 export type MonitoredCondition = LocalMonitoredCondition["condition"];
 
-/** V1.5 hanya BP & glukosa; dyslipidemia/hyperuricemia menyusul (V2). */
-export const CONDITION_META: Record<"hypertension" | "diabetes", { label: string; icon: string; biomarker: "bp" | "glucose"; hint: string }> = {
+export const CONDITION_META: Record<MonitoredCondition, { label: string; icon: string; biomarker: "bp" | "glucose" | "lipid" | "uric_acid"; hint: string }> = {
   hypertension: { label: "Hipertensi", icon: "🫀", biomarker: "bp", hint: "Catat tensi" },
   diabetes: { label: "Diabetes", icon: "🩸", biomarker: "glucose", hint: "Catat gula darah" },
+  dyslipidemia: { label: "Kolesterol", icon: "🧈", biomarker: "lipid", hint: "Catat lipid" },
+  hyperuricemia: { label: "Asam Urat", icon: "🦴", biomarker: "uric_acid", hint: "Catat asam urat" },
 };
 
 async function enqueue(id: string): Promise<void> {

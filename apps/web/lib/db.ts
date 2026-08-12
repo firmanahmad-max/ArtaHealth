@@ -61,10 +61,10 @@ export interface LocalHabitCompletion {
 /** Pembacaan biomarker (Fase 2). classification = hasil engine deterministik di-cache. */
 export interface LocalBiomarkerReading {
   clientId: string; profileId: string;
-  biomarker: "bp" | "glucose";
-  /** konteks glukosa (gdp/gds/pp2/hba1c); null untuk tekanan darah */
+  biomarker: "bp" | "glucose" | "lipid" | "uric_acid";
+  /** konteks: glukosa gdp/gds/pp2/hba1c · asam urat male/female · null utk bp/lipid */
   context: string | null;
-  /** {systolic,diastolic} untuk bp · {value} untuk glukosa */
+  /** {systolic,diastolic} · {value} · {totalChol,ldl,hdl,tg} sesuai biomarker */
   values: Record<string, number>;
   /** BiomarkerClassification dari @arta/core (di-cache utk tampil cepat/offline) */
   classification: unknown | null;

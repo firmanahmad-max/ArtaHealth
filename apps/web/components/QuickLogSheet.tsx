@@ -2,11 +2,11 @@
 import { useEffect, useState } from "react";
 import { SheetModal, useToast } from "@arta/design-system";
 import { logHydration, logSleep, logActivity, logMood, logWeight, undoLog } from "@/lib/quicklog";
-import { logBloodPressure, logGlucose, undoBiomarker } from "@/lib/biomarker";
-import { featureBiomarker } from "@/lib/features";
-import type { GlucoseContext } from "@arta/core";
+import { logBloodPressure, logGlucose, logLipid, logUricAcid, undoBiomarker } from "@/lib/biomarker";
+import { featureBiomarker, featureBiomarkerV2 } from "@/lib/features";
+import type { GlucoseContext, Sex } from "@arta/core";
 
-type LogKind = "hydration" | "sleep" | "activity" | "mood" | "weight" | "bp" | "glucose";
+type LogKind = "hydration" | "sleep" | "activity" | "mood" | "weight" | "bp" | "glucose" | "lipid" | "uric_acid";
 
 const BASE_KINDS: { key: LogKind; icon: string; label: string }[] = [
   { key: "hydration", icon: "💧", label: "Air" },
@@ -15,10 +15,23 @@ const BASE_KINDS: { key: LogKind; icon: string; label: string }[] = [
   { key: "mood", icon: "🙂", label: "Mood" },
   { key: "weight", icon: "⚖️", label: "Berat" },
 ];
-// Fase 2: biomarker hanya muncul di balik feature flag (ambang menunggu review medis)
-const KINDS = featureBiomarker()
-  ? [...BASE_KINDS, { key: "bp" as LogKind, icon: "🫀", label: "Tensi" }, { key: "glucose" as LogKind, icon: "🩸", label: "Gula" }]
-  : BASE_KINDS;
+// Fase 2: biomarker hanya muncul di balik feature flag (ambang menunggu review medis).
+// V1.5 (tensi/gula) & V2 (lipid/asam urat) dipisah flag — ambang V2 direview terpisah.
+const KINDS = [
+  ...BASE_KINDS,
+  ...(featureBiomarker()
+    ? [
+        { key: "bp" as LogKind, icon: "🫀", label: "Tensi" },
+        { key: "glucose" as LogKind, icon: "🩸", label: "Gula" },
+      ]
+    : []),
+  ...(featureBiomarkerV2()
+    ? [
+        { key: "lipid" as LogKind, icon: "🧈", label: "Lipid" },
+        { key: "uric_acid" as LogKind, icon: "🦴", label: "Asam Urat" },
+      ]
+    : []),
+];
 
 const GLUCOSE_CONTEXTS: { value: GlucoseContext; label: string; hint: string }[] = [
   { value: "gdp", label: "Puasa", hint: "GDP" },
@@ -57,6 +70,9 @@ export function QuickLogSheet({ open, onClose }: { open: boolean; onClose: () =>
   const [diastolic, setDiastolic] = useState("");
   const [glucoseCtx, setGlucoseCtx] = useState<GlucoseContext>("gdp");
   const [glucoseVal, setGlucoseVal] = useState("");
+  const [lipid, setLipid] = useState({ totalChol: "", ldl: "", hdl: "", tg: "" });
+  const [uricVal, setUricVal] = useState("");
+  const [uricSex, setUricSex] = useState<Sex>("male");
 
   const done = (message: string, table: Parameters<typeof undoLog>[0], clientId: string) => {
     onClose();
@@ -133,6 +149,28 @@ export function QuickLogSheet({ open, onClose }: { open: boolean; onClose: () =>
       const label = GLUCOSE_CONTEXTS.find((c) => c.value === glucoseCtx)?.label ?? "";
       setGlucoseVal("");
       doneBiomarker(`Gula (${label}) ${glucoseVal} — ${classification.band.label}`, clientId, classification.redFlag);
+    } catch { fail(); } finally { setBusy(false); }
+  };
+
+  const num = (s: string) => (s.trim() === "" ? undefined : Number(s));
+  const lipidHasValue = !!(lipid.totalChol || lipid.ldl || lipid.hdl || lipid.tg);
+  const saveLipid = async () => {
+    setBusy(true);
+    try {
+      const { clientId, classification } = await logLipid({
+        totalChol: num(lipid.totalChol), ldl: num(lipid.ldl), hdl: num(lipid.hdl), tg: num(lipid.tg),
+      });
+      setLipid({ totalChol: "", ldl: "", hdl: "", tg: "" });
+      doneBiomarker(`Lipid tercatat — ${classification.band.label}`, clientId, classification.redFlag);
+    } catch { fail(); } finally { setBusy(false); }
+  };
+
+  const saveUricAcid = async () => {
+    setBusy(true);
+    try {
+      const { clientId, classification } = await logUricAcid(Number(uricVal), uricSex);
+      setUricVal("");
+      doneBiomarker(`Asam urat ${uricVal} — ${classification.band.label}`, clientId, classification.redFlag);
     } catch { fail(); } finally { setBusy(false); }
   };
 
@@ -289,6 +327,59 @@ export function QuickLogSheet({ open, onClose }: { open: boolean; onClose: () =>
             />
           </label>
           <button onClick={() => void saveGlucose()} disabled={busy || !glucoseVal} style={btnPrimary}>Catat Gula Darah</button>
+        </div>
+      )}
+
+      {kind === "lipid" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <label style={label}>
+              Kolesterol Total
+              <input type="number" inputMode="numeric" value={lipid.totalChol} onChange={(e) => setLipid({ ...lipid, totalChol: e.target.value })} placeholder="mg/dL" style={input} />
+            </label>
+            <label style={label}>
+              LDL
+              <input type="number" inputMode="numeric" value={lipid.ldl} onChange={(e) => setLipid({ ...lipid, ldl: e.target.value })} placeholder="mg/dL" style={input} />
+            </label>
+            <label style={label}>
+              HDL
+              <input type="number" inputMode="numeric" value={lipid.hdl} onChange={(e) => setLipid({ ...lipid, hdl: e.target.value })} placeholder="mg/dL" style={input} />
+            </label>
+            <label style={label}>
+              Trigliserida
+              <input type="number" inputMode="numeric" value={lipid.tg} onChange={(e) => setLipid({ ...lipid, tg: e.target.value })} placeholder="mg/dL" style={input} />
+            </label>
+          </div>
+          <p style={hint}>Isi yang tersedia di hasil lab — minimal satu. Satuan mg/dL.</p>
+          <button onClick={() => void saveLipid()} disabled={busy || !lipidHasValue} style={btnPrimary}>Catat Lipid</button>
+        </div>
+      )}
+
+      {kind === "uric_acid" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", gap: 6 }}>
+            {([["male", "Pria"], ["female", "Wanita"]] as const).map(([val, lbl]) => (
+              <button
+                key={val}
+                onClick={() => setUricSex(val)}
+                aria-pressed={uricSex === val}
+                style={{
+                  flex: 1, minHeight: 44, borderRadius: "var(--ah-r-full)", cursor: "pointer",
+                  border: uricSex === val ? "1.5px solid var(--ah-cyan)" : "1px solid var(--ah-border)",
+                  background: uricSex === val ? "var(--ah-gradient-soft)" : "var(--ah-surface-2)",
+                  color: "var(--ah-text-primary)", fontSize: 13, fontWeight: 600,
+                }}
+              >
+                {lbl}
+              </button>
+            ))}
+          </div>
+          <label style={label}>
+            Asam urat (mg/dL)
+            <input type="number" inputMode="decimal" step="0.1" value={uricVal} onChange={(e) => setUricVal(e.target.value)} placeholder="5.5" style={input} />
+          </label>
+          <p style={hint}>Ambang berbeda pria (&lt;7,0) &amp; wanita (&lt;6,0).</p>
+          <button onClick={() => void saveUricAcid()} disabled={busy || !uricVal} style={btnPrimary}>Catat Asam Urat</button>
         </div>
       )}
     </SheetModal>

@@ -137,15 +137,16 @@ describe("panduan red-flag", () => {
   });
 });
 
-describe("seed default lengkap (cermin migration 0010)", () => {
-  it("tiap (biomarker,parameter) menutup seluruh garis bilangan tanpa celah", () => {
+describe("seed default lengkap (cermin migration 0010 + 0011)", () => {
+  it("tiap (biomarker,parameter,sex) menutup seluruh garis bilangan tanpa celah", () => {
     const groups = new Map<string, Band[]>();
     for (const b of BANDS) {
-      const k = `${b.biomarker}:${b.parameter}`;
+      const k = `${b.biomarker}:${b.parameter}:${b.sex ?? "all"}`;
       (groups.get(k) ?? groups.set(k, []).get(k)!).push(b);
     }
     for (const bands of groups.values()) {
-      const sorted = [...bands].sort((a, b) => a.rank - b.rank);
+      // urut berdasar batas bawah (bukan rank) → robust utk parameter terbalik (HDL)
+      const sorted = [...bands].sort((a, b) => (a.minValue ?? -Infinity) - (b.minValue ?? -Infinity));
       const first = sorted.at(0)!;
       const last = sorted.at(-1)!;
       expect(first.minValue).toBeNull();                           // mulai dari -inf
@@ -154,5 +155,39 @@ describe("seed default lengkap (cermin migration 0010)", () => {
         expect(sorted[i]!.minValue).toBe(sorted[i - 1]!.maxValue); // bersambung tanpa celah/tumpang tindih
       }
     }
+  });
+});
+
+describe("lipid — panel NCEP ATP III, kategori terburuk menentukan", () => {
+  it("tiap parameter diklasifikasi; HDL terbalik (tinggi = baik)", () => {
+    expect(classifyBiomarker({ biomarker: "lipid", totalChol: 180 }, BANDS).band.label).toBe("Diinginkan");
+    expect(classifyBiomarker({ biomarker: "lipid", ldl: 170 }, BANDS).band.label).toBe("Tinggi");
+    expect(classifyBiomarker({ biomarker: "lipid", hdl: 70 }, BANDS).band.label).toBe("Baik");   // tinggi = baik
+    expect(classifyBiomarker({ biomarker: "lipid", hdl: 35 }, BANDS).band.zone).toBe("red");     // rendah = merah
+    expect(classifyBiomarker({ biomarker: "lipid", tg: 600 }, BANDS).band.label).toBe("Sangat Tinggi");
+  });
+  it("panel gabungan mengambil temuan terburuk (rank tertinggi)", () => {
+    const r = classifyBiomarker({ biomarker: "lipid", totalChol: 180, ldl: 110, hdl: 30, tg: 120 }, BANDS);
+    expect(r.zone).toBe("red");           // HDL rendah (rank2) mengalahkan yang lain
+    expect(r.components).toHaveLength(4);
+    expect(r.redFlag).toBe(false);
+  });
+  it("panel parsial hanya menilai yang ada; kosong / band hilang → melempar", () => {
+    expect(classifyBiomarker({ biomarker: "lipid", ldl: 90 }, BANDS).components).toHaveLength(1);
+    expect(() => classifyBiomarker({ biomarker: "lipid" }, BANDS)).toThrow();
+    expect(() => classifyBiomarker({ biomarker: "lipid", ldl: 90 }, [])).toThrow();
+  });
+});
+
+describe("asam urat — sadar gender", () => {
+  it("ambang pria <7.0, wanita <6.0", () => {
+    expect(classifyBiomarker({ biomarker: "uric_acid", value: 6.5, sex: "male" }, BANDS).band.label).toBe("Normal");
+    expect(classifyBiomarker({ biomarker: "uric_acid", value: 6.5, sex: "female" }, BANDS).band.label).toBe("Tinggi");
+    expect(classifyBiomarker({ biomarker: "uric_acid", value: 7.0, sex: "male" }, BANDS).band.zone).toBe("red");
+    expect(classifyBiomarker({ biomarker: "uric_acid", value: 5.9, sex: "female" }, BANDS).band.label).toBe("Normal");
+  });
+  it("tak ada red-flag akut; band hilang → melempar", () => {
+    expect(classifyBiomarker({ biomarker: "uric_acid", value: 8, sex: "male" }, BANDS).redFlag).toBe(false);
+    expect(() => classifyBiomarker({ biomarker: "uric_acid", value: 8, sex: "male" }, [])).toThrow();
   });
 });
