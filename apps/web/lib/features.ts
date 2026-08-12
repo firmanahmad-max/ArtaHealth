@@ -16,3 +16,11 @@ export const featureBiomarker = (): boolean =>
  */
 export const featureBiomarkerV2 = (): boolean =>
   featureBiomarker() && process.env.NEXT_PUBLIC_FEATURE_BIOMARKER_V2 === "1";
+
+/**
+ * Mode Ramadan (Fase 3). Default OFF: fitur puasa tak tampil sampai akurasi
+ * imsakiyah divalidasi vs Kemenag (±2 mnt) & konten medis/keislaman direview
+ * (addendum-ramadan §10). Dev: set NEXT_PUBLIC_FEATURE_RAMADAN=1 di .env.local.
+ */
+export const featureRamadan = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_RAMADAN === "1";

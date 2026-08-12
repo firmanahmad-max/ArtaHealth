@@ -16,6 +16,9 @@ create table fasting_settings (
   ramadan_enabled  boolean not null default false,
   ramadan_start    date,                    -- dikonfirmasi user (sidang isbat) — tak pernah dipaksa dari konversi
   ramadan_end      date,
+  -- koordinat untuk perhitungan imsakiyah client-side (profil belum simpan koordinat)
+  latitude         numeric(8,5),
+  longitude        numeric(8,5),
   -- {senin_kamis, ayyamul_bidh, syawal6, arafah, asyura, daud}
   sunnah_schedules text[] not null default '{}',
   sahur_reminder_min int not null default 60 check (sahur_reminder_min between 0 and 240),
