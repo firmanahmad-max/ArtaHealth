@@ -24,3 +24,11 @@ export const featureBiomarkerV2 = (): boolean =>
  */
 export const featureRamadan = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_RAMADAN === "1";
+
+/**
+ * Modul obat / Medicine Reminder (Fase 3). Default OFF. Flag sendiri karena modul
+ * terpisah; deteksi konflik jadwal obat vs jam puasa aktif hanya bila Mode Ramadan
+ * juga menyala. Dev: set NEXT_PUBLIC_FEATURE_MEDICATION=1 di .env.local.
+ */
+export const featureMedication = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_MEDICATION === "1";

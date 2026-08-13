@@ -108,8 +108,33 @@ export interface LocalFastingDay {
   confirmed: boolean;
 }
 
+/** Obat + jadwal (Fase 3, modul Medicine Reminder). Idempoten via PK id. */
+export interface LocalMedication {
+  id: string;
+  profileId: string;
+  name: string;
+  dosage?: string;
+  schedule: { times: string[]; days: number[] }; // times "HH:MM", days ISO 1-7 (kosong = tiap hari)
+  stock: number | null;
+  stockAlert: number;
+  isActive: boolean;
+  createdAt: string;
+  deletedAt: string | null;
+}
+
+/** Catatan minum obat per dosis terjadwal (Fase 3). Idempoten via PK id. */
+export interface LocalMedicationIntake {
+  id: string;
+  medicationId: string;
+  profileId: string;
+  scheduledAt: string;           // ISO
+  takenAt: string | null;
+  status: "pending" | "taken" | "skipped" | "missed";
+  deletedAt: string | null;
+}
+
 export type LogTableName = "hydration_logs" | "sleep_logs" | "activity_logs" | "mood_logs" | "weight_logs";
-export type SyncTableName = LogTableName | "habits" | "habit_completions" | "biomarker_readings" | "monitored_conditions" | "fasting_settings" | "fasting_days";
+export type SyncTableName = LogTableName | "habits" | "habit_completions" | "biomarker_readings" | "monitored_conditions" | "fasting_settings" | "fasting_days" | "medications" | "medication_intakes";
 
 export interface OutboxEntry {
   id?: number;
@@ -133,6 +158,8 @@ type ArtaDB = Dexie & {
   monitored_conditions: EntityTable<LocalMonitoredCondition, "id">;
   fasting_settings: EntityTable<LocalFastingSettings, "profileId">;
   fasting_days: EntityTable<LocalFastingDay, "id">;
+  medications: EntityTable<LocalMedication, "id">;
+  medication_intakes: EntityTable<LocalMedicationIntake, "id">;
   outbox: EntityTable<OutboxEntry, "id">;
   meta: EntityTable<MetaEntry, "key">;
 };
@@ -165,6 +192,11 @@ db.version(4).stores({
 db.version(5).stores({
   fasting_settings: "profileId",
   fasting_days: "id, [profileId+date]",
+});
+// v6 (Fase 3): modul obat — idempoten via id; index intake per obat
+db.version(6).stores({
+  medications: "id, isActive",
+  medication_intakes: "id, medicationId, [medicationId+scheduledAt]",
 });
 
 /** Awal hari lokal perangkat (ISO) — batas "hari ini" untuk skor & dashboard. */

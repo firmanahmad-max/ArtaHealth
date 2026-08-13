@@ -4,6 +4,7 @@ import {
   type LocalMoodLog, type LocalWeightLog, type LocalHabit, type LocalHabitCompletion,
   type LocalBiomarkerReading, type LocalMonitoredCondition,
   type LocalFastingSettings, type LocalFastingDay,
+  type LocalMedication, type LocalMedicationIntake,
 } from "./db";
 import { getSupabase, type PrimaryProfile } from "./supabase";
 
@@ -41,7 +42,7 @@ export async function getTargets(): Promise<{ hydrationMl: number; steps: number
 type AnyLocalRow =
   | LocalHydrationLog | LocalSleepLog | LocalActivityLog | LocalMoodLog | LocalWeightLog
   | LocalHabit | LocalHabitCompletion | LocalBiomarkerReading | LocalMonitoredCondition
-  | LocalFastingSettings | LocalFastingDay;
+  | LocalFastingSettings | LocalFastingDay | LocalMedication | LocalMedicationIntake;
 
 /** habits & monitored_conditions ber-idempoten lewat PK id (uuid client), bukan client_id. */
 const CONFLICT_KEY: Record<SyncTableName, string> = {
@@ -56,6 +57,8 @@ const CONFLICT_KEY: Record<SyncTableName, string> = {
   monitored_conditions: "id",
   fasting_settings: "profile_id",       // satu baris per profil
   fasting_days: "profile_id,date",      // satu baris per (profil, tanggal)
+  medications: "id",
+  medication_intakes: "id",
 };
 
 function toServerRow(table: SyncTableName, row: AnyLocalRow): Record<string, unknown> {
@@ -103,6 +106,21 @@ function toServerRow(table: SyncTableName, row: AnyLocalRow): Record<string, unk
     return {
       profile_id: r.profileId, date: r.date, fasting_type: r.fastingType,
       status: r.status, confirmed: r.confirmed,
+    };
+  }
+  if (table === "medications") {
+    const r = row as LocalMedication;
+    return {
+      id: r.id, profile_id: r.profileId, name: r.name, dosage: r.dosage ?? null,
+      schedule: r.schedule, stock: r.stock, stock_alert: r.stockAlert,
+      is_active: r.isActive, created_at: r.createdAt, deleted_at: r.deletedAt,
+    };
+  }
+  if (table === "medication_intakes") {
+    const r = row as LocalMedicationIntake;
+    return {
+      id: r.id, medication_id: r.medicationId, profile_id: r.profileId,
+      scheduled_at: r.scheduledAt, taken_at: r.takenAt, status: r.status, deleted_at: r.deletedAt,
     };
   }
   const base = { profile_id: (row as { profileId: string }).profileId, client_id: (row as { clientId: string }).clientId, deleted_at: (row as { deletedAt: string | null }).deletedAt };
@@ -215,6 +233,22 @@ function fromServerRow(table: SyncTableName, r: ServerRow): AnyLocalRow {
       fastingType: r.fasting_type, status: r.status, confirmed: !!r.confirmed,
     } as LocalFastingDay;
   }
+  if (table === "medications") {
+    const sched = (r.schedule as { times?: string[]; days?: number[] }) ?? {};
+    return {
+      id: r.id, profileId: r.profile_id, name: r.name, dosage: (r.dosage as string | null) ?? undefined,
+      schedule: { times: sched.times ?? [], days: sched.days ?? [] },
+      stock: (r.stock as number | null) ?? null, stockAlert: (r.stock_alert as number) ?? 5,
+      isActive: !!r.is_active, createdAt: r.created_at, deletedAt: (r.deleted_at as string | null) ?? null,
+    } as LocalMedication;
+  }
+  if (table === "medication_intakes") {
+    return {
+      id: r.id, medicationId: r.medication_id, profileId: r.profile_id,
+      scheduledAt: r.scheduled_at, takenAt: (r.taken_at as string | null) ?? null,
+      status: r.status, deletedAt: (r.deleted_at as string | null) ?? null,
+    } as LocalMedicationIntake;
+  }
   const base = {
     clientId: r.client_id as string,
     profileId: r.profile_id as string,
@@ -242,6 +276,7 @@ const SYNC_TABLES: SyncTableName[] = [
   "habits", "habit_completions", // habits sebelum completions (FK habit_id)
   "biomarker_readings", "monitored_conditions",
   "fasting_settings", "fasting_days",
+  "medications", "medication_intakes", // medications sebelum intakes (FK medication_id)
 ];
 const PULL_PAGE = 500;
 let pulling = false;
@@ -287,7 +322,8 @@ async function pullTable(table: SyncTableName, profileId: string): Promise<void>
       (await db.outbox.where("table").equals(table).toArray()).map((e) => e.clientId),
     );
     const serverKeyOf = (r: ServerRow): string => {
-      if (table === "habits" || table === "monitored_conditions") return r.id as string;
+      if (table === "habits" || table === "monitored_conditions" ||
+          table === "medications" || table === "medication_intakes") return r.id as string;
       if (table === "fasting_settings") return r.profile_id as string;      // kunci Dexie = profileId
       if (table === "fasting_days") return `${r.profile_id}:${r.date}`;      // kunci Dexie = `${profileId}:${date}`
       return r.client_id as string;

@@ -20,7 +20,8 @@ import { HydrationSessionTracker } from "@/components/HydrationSessionTracker";
 import { PreRamadanMedicalCard } from "@/components/PreRamadanMedicalCard";
 import { RamadanSetupCard } from "@/components/RamadanSetupCard";
 import { SunnahScheduleCard } from "@/components/SunnahScheduleCard";
-import { featureBiomarker, featureRamadan } from "@/lib/features";
+import { MedicationCard } from "@/components/MedicationCard";
+import { featureBiomarker, featureRamadan, featureMedication } from "@/lib/features";
 import { isScheduledOn, isoWeekdayOf } from "@arta/core";
 import { todayKey } from "@/lib/habits";
 import { isFastingToday } from "@/lib/fasting";
@@ -239,6 +240,8 @@ export default function Dashboard() {
         <InsightCard />
 
         {featureBiomarker() && <RiskPanelCard onLog={() => setSheetOpen(true)} />}
+
+        {featureMedication() && <MedicationCard />}
 
         <HabitCard />
 
