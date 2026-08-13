@@ -160,6 +160,20 @@ export async function sunnahInfoToday(): Promise<SunnahInfo> {
   };
 }
 
+/** Jadwal sunnah yang jatuh BESOK + nama hari — untuk pengingat lembut malam sebelumnya (§3.2). */
+export async function sunnahInfoTomorrow(): Promise<{ hits: SunnahSchedule[]; dayName: string }> {
+  const s = await getFastingSettings();
+  const t = new Date();
+  t.setDate(t.getDate() + 1);
+  const key = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+  const [y, m, d] = key.split("-").map(Number);
+  const schedules = (s.sunnahSchedules as SunnahSchedule[]) ?? [];
+  return {
+    hits: sunnahFastingOn(y!, m!, d!, isoWeekdayOf(key), schedules),
+    dayName: t.toLocaleDateString("id-ID", { weekday: "long" }),
+  };
+}
+
 /** Gabung koreksi ihtiyati ±menit per waktu (menutup selisih vs Kemenag, §10). */
 export async function setTimeCorrection(patch: Record<string, number>): Promise<void> {
   const s = await getFastingSettings();

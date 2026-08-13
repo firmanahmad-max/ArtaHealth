@@ -1,7 +1,7 @@
 "use client";
 import { useLiveQuery } from "dexie-react-hooks";
 import { formatHijri, SUNNAH_LABELS, type SunnahSchedule } from "@arta/core";
-import { sunnahInfoToday, setSunnahSchedules, isFastingToday, setTodayFasting } from "@/lib/fasting";
+import { sunnahInfoToday, sunnahInfoTomorrow, setSunnahSchedules, isFastingToday, setTodayFasting } from "@/lib/fasting";
 import { useToast } from "@arta/design-system";
 
 /**
@@ -13,6 +13,7 @@ import { useToast } from "@arta/design-system";
 export function SunnahScheduleCard() {
   const { show } = useToast();
   const info = useLiveQuery(() => sunnahInfoToday(), []);
+  const tomorrow = useLiveQuery(() => sunnahInfoTomorrow(), []);
   const fasting = useLiveQuery(() => isFastingToday(), []) ?? false;
 
   if (!info) return null;
@@ -44,6 +45,12 @@ export function SunnahScheduleCard() {
           </p>
           <button onClick={() => void markFasting()} style={hintBtn}>Tandai puasa hari ini</button>
         </div>
+      )}
+
+      {!suggestion && tomorrow && tomorrow.hits.length > 0 && (
+        <p style={{ fontSize: 12, color: "var(--ah-text-secondary)", lineHeight: 1.5, background: "var(--ah-surface-2)", borderRadius: "var(--ah-r-inner)", padding: "8px 10px" }}>
+          🌙 Besok {tomorrow.dayName} — jadwal puasa sunnah Anda (<b>{tomorrow.hits.map((h) => SUNNAH_LABELS[h]).join(", ")}</b>). Siapkan sahur, ya.
+        </p>
       )}
 
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
