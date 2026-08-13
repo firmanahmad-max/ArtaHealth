@@ -11,3 +11,4 @@ export * from "./biomarker.ts";
 export * from "./fasting/prayer-times.ts";
 export * from "./fasting/reminders.ts";
 export * from "./fasting/safety.ts";
+export * from "./fasting/streak.ts";
