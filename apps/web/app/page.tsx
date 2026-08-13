@@ -19,6 +19,7 @@ import { ImsakiyahCard } from "@/components/ImsakiyahCard";
 import { HydrationSessionTracker } from "@/components/HydrationSessionTracker";
 import { PreRamadanMedicalCard } from "@/components/PreRamadanMedicalCard";
 import { RamadanSetupCard } from "@/components/RamadanSetupCard";
+import { SunnahScheduleCard } from "@/components/SunnahScheduleCard";
 import { featureBiomarker, featureRamadan } from "@/lib/features";
 import { isScheduledOn, isoWeekdayOf } from "@arta/core";
 import { todayKey } from "@/lib/habits";
@@ -158,6 +159,7 @@ export default function Dashboard() {
 
         {featureRamadan() && <RamadanHeader />}
         {featureRamadan() && <RamadanSetupCard />}
+        {featureRamadan() && <SunnahScheduleCard />}
         {featureRamadan() && <PreRamadanMedicalCard />}
         {featureRamadan() && fastingToday && <ImsakiyahCard />}
         {featureRamadan() && fastingToday && <HydrationSessionTracker />}

@@ -1,7 +1,8 @@
 "use client";
 import {
   computePrayerTimes, ramadanFastingProgress,
-  type PrayerTimes, type RamadanProgress,
+  gregorianToHijri, sunnahFastingOn, isoWeekdayOf,
+  type PrayerTimes, type RamadanProgress, type HijriDate, type SunnahSchedule,
 } from "@arta/core";
 import { db, type LocalFastingSettings, type LocalFastingDay } from "./db";
 import { flushOutbox, getActiveProfileId } from "./sync";
@@ -131,6 +132,32 @@ export async function setLocation(latitude: number, longitude: number): Promise<
 /** Tandai interstitial keamanan medis pra-Ramadan (§3.3) sudah dibaca. */
 export async function acknowledgeMedical(): Promise<void> {
   await saveFastingSettings({ medicalAckAt: new Date().toISOString() });
+}
+
+/** Simpan jadwal puasa sunnah yang diikuti user (§3.2). */
+export async function setSunnahSchedules(schedules: SunnahSchedule[]): Promise<void> {
+  await saveFastingSettings({ sunnahSchedules: schedules });
+}
+
+export interface SunnahInfo {
+  hijri: HijriDate;
+  /** jadwal sunnah yang JATUH hari ini (dari yang dipilih user) */
+  hits: SunnahSchedule[];
+  /** jadwal sunnah yang dipilih user */
+  schedules: SunnahSchedule[];
+}
+
+/** Tanggal Hijriah hari ini + jadwal sunnah yang jatuh hari ini. */
+export async function sunnahInfoToday(): Promise<SunnahInfo> {
+  const s = await getFastingSettings();
+  const key = todayKey();
+  const [y, m, d] = key.split("-").map(Number);
+  const schedules = (s.sunnahSchedules as SunnahSchedule[]) ?? [];
+  return {
+    hijri: gregorianToHijri(y!, m!, d!),
+    hits: sunnahFastingOn(y!, m!, d!, isoWeekdayOf(key), schedules),
+    schedules,
+  };
 }
 
 /** Gabung koreksi ihtiyati ±menit per waktu (menutup selisih vs Kemenag, §10). */
