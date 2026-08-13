@@ -14,6 +14,16 @@ export function localHour(now: Date, timeZone: string): number {
   return Number(h);
 }
 
+/** Menit sejak tengah malam lokal 0–1439 di timeZone pada instan `now` (WIB 04:39 → 279). */
+export function localMinuteOfDay(now: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(now);
+  const h = Number(parts.find((p) => p.type === "hour")!.value);
+  const m = Number(parts.find((p) => p.type === "minute")!.value);
+  return h * 60 + m;
+}
+
 /** Rentang UTC [startUtc, endUtc) yang memuat seluruh tanggal lokal `dateKey` di timeZone. */
 export function utcRangeForLocalDate(dateKey: string, timeZone: string): { startUtc: Date; endUtc: Date } {
   // offset diambil pada tengah hari lokal — aman dari transisi DST di batas hari
