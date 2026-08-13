@@ -85,6 +85,11 @@ export async function setLocation(latitude: number, longitude: number): Promise<
   await saveFastingSettings({ latitude, longitude });
 }
 
+/** Tandai interstitial keamanan medis pra-Ramadan (§3.3) sudah dibaca. */
+export async function acknowledgeMedical(): Promise<void> {
+  await saveFastingSettings({ medicalAckAt: new Date().toISOString() });
+}
+
 /** Gabung koreksi ihtiyati ±menit per waktu (menutup selisih vs Kemenag, §10). */
 export async function setTimeCorrection(patch: Record<string, number>): Promise<void> {
   const s = await getFastingSettings();
