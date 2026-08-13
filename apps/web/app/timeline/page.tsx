@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useMounted } from "@/lib/useMounted";
 import { useLiveQuery } from "dexie-react-hooks";
 import { HealthRing, TimelineItem, EmptyState } from "@arta/design-system";
-import { computeHealthScore, aggregateDayInputs } from "@arta/core";
+import { computeHealthScore, aggregateDayInputs, gregorianToHijri, formatHijri } from "@arta/core";
 import { db, startOfTodayIso } from "@/lib/db";
 import { getSupabase } from "@/lib/supabase";
 import { QuickLogSheet } from "@/components/QuickLogSheet";
@@ -195,6 +195,10 @@ export default function TimelinePage() {
               }}
             >
               {dayLabel(dateKey)}
+              {featureRamadan() && (() => {
+                const [y, m, d] = dateKey.split("-").map(Number);
+                return <span style={{ fontWeight: 500, color: "var(--ah-text-tertiary)" }}> · 🌙 {formatHijri(gregorianToHijri(y!, m!, d!))}</span>;
+              })()}
             </h2>
             {dayItems.map((item, i) => (
               <TimelineItem
