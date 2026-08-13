@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { localDateKey, localHour, utcRangeForLocalDate, tzOffsetMinutes } from "../timezone";
+import { localDateKey, localHour, utcRangeForLocalDate, tzOffsetMinutes, localMinuteOfDay } from "../timezone";
 
 describe("timezone helpers", () => {
   it("offset zona Indonesia benar (tanpa DST)", () => {
@@ -27,6 +27,14 @@ describe("timezone helpers", () => {
     const { startUtc, endUtc } = utcRangeForLocalDate("2026-07-18", "Asia/Jakarta");
     expect(startUtc.toISOString()).toBe("2026-07-17T17:00:00.000Z"); // 00:00 WIB
     expect(endUtc.toISOString()).toBe("2026-07-18T17:00:00.000Z");   // 24:00 WIB
+  });
+
+  it("menit lokal sejak tengah malam (untuk jendela sahur)", () => {
+    // 21:39 UTC = 04:39 WIB → 279 menit
+    expect(localMinuteOfDay(new Date("2026-02-17T21:39:00Z"), "Asia/Jakarta")).toBe(279);
+    // 20:39 UTC = 04:39 WITA
+    expect(localMinuteOfDay(new Date("2026-02-17T20:39:00Z"), "Asia/Makassar")).toBe(279);
+    expect(localMinuteOfDay(new Date("2026-07-18T17:00:00Z"), "Asia/Jakarta")).toBe(0); // 00:00 WIB
   });
 
   it("zona ber-DST tetap konsisten (offset diambil tengah hari)", () => {

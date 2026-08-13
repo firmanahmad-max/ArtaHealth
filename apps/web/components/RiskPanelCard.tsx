@@ -1,13 +1,14 @@
 "use client";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
-  redFlagGuidance, DEFAULT_BIOMARKER_BANDS,
+  redFlagGuidance, DEFAULT_BIOMARKER_BANDS, fastingRukhsahNote,
   type BiomarkerClassification, type Zone, type Band,
 } from "@arta/core";
 import { db, type LocalBiomarkerReading } from "@/lib/db";
 import { asClassification } from "@/lib/biomarker";
 import { monitoredSet, setMonitored, CONDITION_META, type MonitoredCondition } from "@/lib/conditions";
-import { featureBiomarkerV2 } from "@/lib/features";
+import { featureBiomarkerV2, featureRamadan } from "@/lib/features";
+import { isFastingToday } from "@/lib/fasting";
 import { BiomarkerTrendChart, type TrendPoint } from "./BiomarkerTrendChart";
 
 /** Biomarker & kondisi yang hanya tampil bila flag V2 aktif (lipid & asam urat). */
@@ -57,6 +58,8 @@ export function RiskPanelCard({ onLog }: { onLog: () => void }) {
     return all.filter((r) => !r.deletedAt);
   }, []);
   const monitored = useLiveQuery(() => monitoredSet(), []);
+  // hari puasa → red-flag glukosa mendapat catatan rukhsah (§3.3); inert bila flag Ramadan mati
+  const fasting = (useLiveQuery(() => isFastingToday(), []) ?? false) && featureRamadan();
 
   if (rows === undefined || monitored === undefined) return null;
 
@@ -89,7 +92,7 @@ export function RiskPanelCard({ onLog }: { onLog: () => void }) {
         </p>
       ) : (
         <>
-          {redFlags.map((c) => <RedFlagBanner key={c.redFlagReason} classification={c} />)}
+          {redFlags.map((c) => <RedFlagBanner key={c.redFlagReason} classification={c} fasting={fasting} />)}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {shown.map((mk) => {
@@ -246,12 +249,18 @@ function MarkerRow({ icon, name, value, unit, classification, sub }: {
   );
 }
 
-function RedFlagBanner({ classification }: { classification: BiomarkerClassification }) {
+function RedFlagBanner({ classification, fasting }: { classification: BiomarkerClassification; fasting: boolean }) {
   const g = redFlagGuidance(classification.redFlagReason!);
+  const rukhsah = fastingRukhsahNote(classification.redFlagReason, fasting);
   return (
     <div role="alert" style={redFlagBox}>
       <p style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>⚠️ {g.title}</p>
       <p style={{ fontSize: 12, color: "#fff", lineHeight: 1.5, opacity: 0.95 }}>{g.action}</p>
+      {rukhsah && (
+        <p style={{ fontSize: 12, color: "#fff", lineHeight: 1.5, opacity: 0.95, borderTop: "1px solid rgba(255,255,255,0.25)", paddingTop: 6 }}>
+          🌙 {rukhsah}
+        </p>
+      )}
     </div>
   );
 }

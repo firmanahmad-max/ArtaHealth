@@ -1,8 +1,7 @@
 "use client";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useToast } from "@arta/design-system";
-import { fastingStatusFor, setTodayFasting } from "@/lib/fasting";
-import { todayKey } from "@/lib/habits";
+import { isFastingToday, setTodayFasting } from "@/lib/fasting";
 
 /**
  * Toggle status puasa hari ini (addendum-ramadan §3.1/§6.4): switch DIAM —
@@ -11,8 +10,7 @@ import { todayKey } from "@/lib/habits";
  */
 export function FastingToggle() {
   const { show } = useToast();
-  const status = useLiveQuery(() => fastingStatusFor(todayKey()), []);
-  const fasting = status?.status === "fasting";
+  const fasting = useLiveQuery(() => isFastingToday(), []) ?? false;
 
   const toggle = async () => {
     await setTodayFasting(fasting ? "not_fasting" : "fasting");

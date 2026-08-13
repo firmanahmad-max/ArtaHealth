@@ -16,7 +16,11 @@ import { aggregateDayInputs } from "../../../packages/core/src/aggregate.ts";
 import { computeHealthScore } from "../../../packages/core/src/scoring/health-score.ts";
 import { buildReminder, type ReminderKind } from "../../../packages/core/src/notifications.ts";
 import { isScheduledOn, isoWeekdayOf } from "../../../packages/core/src/habits.ts";
-import { localDateKey, localHour, utcRangeForLocalDate } from "../../../packages/core/src/timezone.ts";
+import { computePrayerTimes } from "../../../packages/core/src/fasting/prayer-times.ts";
+import { buildSahurReminder } from "../../../packages/core/src/fasting/reminders.ts";
+import {
+  localDateKey, localHour, localMinuteOfDay, tzOffsetMinutes, utcRangeForLocalDate,
+} from "../../../packages/core/src/timezone.ts";
 import type { InsightContext } from "../../../packages/core/src/ai/contracts.ts";
 
 declare const Deno: {
@@ -161,6 +165,72 @@ Deno.serve(async (req) => {
           : {}),
         ...(inputs.habits ? { habits: inputs.habits } : {}),
       };
+
+      // ── Pengingat sahur (Mode Ramadan) ──────────────────────────────────
+      // Terisolasi & defensif: kegagalan/ketiadaan data puasa TIDAK boleh
+      // mengganggu pengingat reguler. Inert bila tak ada baris fasting hari ini
+      // atau koordinat belum di-set (flag Ramadan mati → tak ada data → no-op).
+      // Berjalan SEBELUM buildReminder karena jam pra-fajar biasanya menghasilkan
+      // reminder reguler null (jam tenang), tapi sahur justru saat itu.
+      try {
+        const [fs, fd] = await Promise.all([
+          supabase.from("fasting_settings")
+            .select("latitude, longitude, sahur_reminder_min, time_correction")
+            .eq("profile_id", profile.id).maybeSingle(),
+          supabase.from("fasting_days").select("status")
+            .eq("profile_id", profile.id).eq("date", dateKey).maybeSingle(),
+        ]);
+        const fsettings = fs.data as {
+          latitude: number | null; longitude: number | null;
+          sahur_reminder_min: number | null; time_correction: Record<string, number> | null;
+        } | null;
+        const isFasting = (fd.data as { status?: string } | null)?.status === "fasting";
+
+        if (isFasting && fsettings && fsettings.latitude != null && fsettings.longitude != null) {
+          const [y, mo, d] = dateKey.split("-").map(Number);
+          const times = computePrayerTimes({
+            year: y, month: mo, day: d,
+            coords: { latitude: fsettings.latitude, longitude: fsettings.longitude },
+            timezoneOffset: tzOffsetMinutes(now, tz) / 60,
+            params: { corrections: fsettings.time_correction ?? {} },
+          });
+          const sahur = buildSahurReminder({
+            nowMinutes: localMinuteOfDay(now, tz),
+            imsakMinutes: times.imsak,
+            reminderOffsetMin: fsettings.sahur_reminder_min ?? 60,
+            hydration: context.hydration
+              ? { totalMl: context.hydration.totalMl, targetMl: context.hydration.targetMl }
+              : undefined,
+          });
+          if (sahur) {
+            // klaim slot dedup 'sahur' lebih dulu (sekali per hari per profil)
+            const { error: sahurClaim } = await supabase.from("reminder_log")
+              .insert({ profile_id: profile.id, date: dateKey, kind: "sahur" });
+            if (!sahurClaim) {
+              const sahurPayload = JSON.stringify({
+                title: sahur.title, body: sahur.body, url: sahur.url, kind: "sahur",
+              });
+              for (const device of byProfile.get(profile.id) ?? []) {
+                try {
+                  await webpush.sendNotification(
+                    { endpoint: device.endpoint, keys: { p256dh: device.p256dh, auth: device.auth } },
+                    sahurPayload,
+                  );
+                  sent++;
+                } catch (e) {
+                  const status = (e as { statusCode?: number }).statusCode;
+                  if (status === 404 || status === 410) {
+                    await supabase.from("push_devices")
+                      .update({ revoked_at: new Date().toISOString() }).eq("id", device.id);
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error(`sahur gagal profil ${profile.id}: ${(e as Error).message}`);
+      }
 
       const reminder = buildReminder(context, {
         hour,

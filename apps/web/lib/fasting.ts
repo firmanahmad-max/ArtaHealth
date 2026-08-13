@@ -1,5 +1,8 @@
 "use client";
-import { computePrayerTimes, type PrayerTimes } from "@arta/core";
+import {
+  computePrayerTimes, ramadanFastingProgress,
+  type PrayerTimes, type RamadanProgress,
+} from "@arta/core";
 import { db, type LocalFastingSettings, type LocalFastingDay } from "./db";
 import { flushOutbox, getActiveProfileId } from "./sync";
 import { todayKey } from "./habits";
@@ -77,12 +80,57 @@ export async function fastingStatusFor(dateKey: string): Promise<LocalFastingDay
   return db.fasting_days.get(`${profileId}:${dateKey}`);
 }
 
+/** Mode Ramadan aktif untuk tanggal ini? (enabled + dateKey dalam [start,end]) */
+export function isRamadanActiveOn(s: LocalFastingSettings, dateKey: string): boolean {
+  return s.ramadanEnabled && s.ramadanStart != null && s.ramadanEnd != null &&
+    dateKey >= s.ramadanStart && dateKey <= s.ramadanEnd;
+}
+
+/**
+ * Status puasa EFEKTIF hari ini: baris eksplisit menang; bila tak ada & Mode
+ * Ramadan aktif → DEFAULT puasa (§3.1 "Default 'Puasa' selama Ramadan").
+ */
 export async function isFastingToday(): Promise<boolean> {
-  return (await fastingStatusFor(todayKey()))?.status === "fasting";
+  const key = todayKey();
+  const row = await fastingStatusFor(key);
+  if (row) return row.status === "fasting";
+  return isRamadanActiveOn(await getFastingSettings(), key);
+}
+
+/** Aktifkan Mode Ramadan dengan tanggal (dikonfirmasi user — sidang isbat, §4). */
+export async function enableRamadan(startDate: string, endDate: string, sahurReminderMin?: number): Promise<void> {
+  await saveFastingSettings({
+    ramadanEnabled: true, ramadanStart: startDate, ramadanEnd: endDate,
+    ...(sahurReminderMin != null ? { sahurReminderMin } : {}),
+  });
+}
+
+export async function disableRamadan(): Promise<void> {
+  await saveFastingSettings({ ramadanEnabled: false });
+}
+
+/** Progres puasa Ramadan {fasted, elapsed} sampai hari ini (dijepit ke ramadan_end). */
+export async function ramadanProgress(): Promise<RamadanProgress | null> {
+  const s = await getFastingSettings();
+  if (!s.ramadanEnabled || !s.ramadanStart || !s.ramadanEnd) return null;
+  const profileId = await getActiveProfileId();
+  const today = todayKey();
+  const clampedToday = today > s.ramadanEnd ? s.ramadanEnd : today;
+  if (clampedToday < s.ramadanStart) return { fasted: 0, elapsed: 0 };
+  // between() Dexie: includeUpper default FALSE → sertakan kedua batas eksplisit
+  const rows = await db.fasting_days.where("[profileId+date]")
+    .between([profileId, s.ramadanStart], [profileId, clampedToday], true, true).toArray();
+  const entries = rows.map((r) => ({ date: r.date, status: r.status }));
+  return ramadanFastingProgress(entries, s.ramadanStart, clampedToday);
 }
 
 export async function setLocation(latitude: number, longitude: number): Promise<void> {
   await saveFastingSettings({ latitude, longitude });
+}
+
+/** Tandai interstitial keamanan medis pra-Ramadan (§3.3) sudah dibaca. */
+export async function acknowledgeMedical(): Promise<void> {
+  await saveFastingSettings({ medicalAckAt: new Date().toISOString() });
 }
 
 /** Gabung koreksi ihtiyati ±menit per waktu (menutup selisih vs Kemenag, §10). */
