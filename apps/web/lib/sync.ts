@@ -5,7 +5,7 @@ import {
   type LocalBiomarkerReading, type LocalMonitoredCondition,
   type LocalFastingSettings, type LocalFastingDay,
   type LocalMedication, type LocalMedicationIntake,
-  type LocalProductScan, type LocalFoodLog,
+  type LocalProductScan, type LocalFoodLog, type LocalSavedProduct,
 } from "./db";
 import { getSupabase, type PrimaryProfile } from "./supabase";
 
@@ -44,7 +44,7 @@ type AnyLocalRow =
   | LocalHydrationLog | LocalSleepLog | LocalActivityLog | LocalMoodLog | LocalWeightLog
   | LocalHabit | LocalHabitCompletion | LocalBiomarkerReading | LocalMonitoredCondition
   | LocalFastingSettings | LocalFastingDay | LocalMedication | LocalMedicationIntake
-  | LocalProductScan | LocalFoodLog;
+  | LocalProductScan | LocalFoodLog | LocalSavedProduct;
 
 /** habits & monitored_conditions ber-idempoten lewat PK id (uuid client), bukan client_id. */
 const CONFLICT_KEY: Record<SyncTableName, string> = {
@@ -63,6 +63,7 @@ const CONFLICT_KEY: Record<SyncTableName, string> = {
   medication_intakes: "id",
   product_scans: "id",
   food_logs: "id",
+  saved_products: "id",
 };
 
 function toServerRow(table: SyncTableName, row: AnyLocalRow): Record<string, unknown> {
@@ -142,6 +143,14 @@ function toServerRow(table: SyncTableName, row: AnyLocalRow): Record<string, unk
       id: r.id, profile_id: r.profileId, name: r.name ?? null, meal_type: r.mealType,
       sugar_g: r.sugarG, sodium_mg: r.sodiumMg, fat_g: r.fatG, energy_kcal: r.energyKcal,
       source_scan_id: r.sourceScanId, logged_at: r.loggedAt, deleted_at: r.deletedAt,
+    };
+  }
+  if (table === "saved_products") {
+    const r = row as LocalSavedProduct;
+    return {
+      id: r.id, profile_id: r.profileId, product_name: r.productName, food_form: r.foodForm,
+      extracted: r.extracted, last_verdict: r.lastVerdict ?? null, scan_count: r.scanCount,
+      deleted_at: r.deletedAt,
     };
   }
   const base = { profile_id: (row as { profileId: string }).profileId, client_id: (row as { clientId: string }).clientId, deleted_at: (row as { deletedAt: string | null }).deletedAt };
@@ -290,6 +299,15 @@ function fromServerRow(table: SyncTableName, r: ServerRow): AnyLocalRow {
       loggedAt: r.logged_at, deletedAt: (r.deleted_at as string | null) ?? null,
     } as LocalFoodLog;
   }
+  if (table === "saved_products") {
+    return {
+      id: r.id, profileId: r.profile_id, productName: (r.product_name as string) ?? "",
+      foodForm: (r.food_form as "solid" | "beverage") ?? "solid",
+      extracted: r.extracted ?? null, lastVerdict: r.last_verdict ?? null,
+      scanCount: (r.scan_count as number) ?? 1,
+      updatedAt: r.updated_at, deletedAt: (r.deleted_at as string | null) ?? null,
+    } as LocalSavedProduct;
+  }
   const base = {
     clientId: r.client_id as string,
     profileId: r.profile_id as string,
@@ -319,6 +337,7 @@ const SYNC_TABLES: SyncTableName[] = [
   "fasting_settings", "fasting_days",
   "medications", "medication_intakes", // medications sebelum intakes (FK medication_id)
   "product_scans", "food_logs", // scans sebelum food_logs (FK source_scan_id)
+  "saved_products",
 ];
 const PULL_PAGE = 500;
 let pulling = false;
@@ -366,7 +385,8 @@ async function pullTable(table: SyncTableName, profileId: string): Promise<void>
     const serverKeyOf = (r: ServerRow): string => {
       if (table === "habits" || table === "monitored_conditions" ||
           table === "medications" || table === "medication_intakes" ||
-          table === "product_scans" || table === "food_logs") return r.id as string;
+          table === "product_scans" || table === "food_logs" ||
+          table === "saved_products") return r.id as string;
       if (table === "fasting_settings") return r.profile_id as string;      // kunci Dexie = profileId
       if (table === "fasting_days") return `${r.profile_id}:${r.date}`;      // kunci Dexie = `${profileId}:${date}`
       return r.client_id as string;

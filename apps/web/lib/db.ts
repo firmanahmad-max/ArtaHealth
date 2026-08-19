@@ -163,8 +163,21 @@ export interface LocalFoodLog {
   deletedAt: string | null;
 }
 
+/** Lemari produk tersimpan (Fase 4). extracted = NutritionInput. Idempoten via id. */
+export interface LocalSavedProduct {
+  id: string;
+  profileId: string;
+  productName: string;
+  foodForm: "solid" | "beverage";
+  extracted: unknown;
+  lastVerdict: unknown;
+  scanCount: number;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
 export type LogTableName = "hydration_logs" | "sleep_logs" | "activity_logs" | "mood_logs" | "weight_logs";
-export type SyncTableName = LogTableName | "habits" | "habit_completions" | "biomarker_readings" | "monitored_conditions" | "fasting_settings" | "fasting_days" | "medications" | "medication_intakes" | "product_scans" | "food_logs";
+export type SyncTableName = LogTableName | "habits" | "habit_completions" | "biomarker_readings" | "monitored_conditions" | "fasting_settings" | "fasting_days" | "medications" | "medication_intakes" | "product_scans" | "food_logs" | "saved_products";
 
 export interface OutboxEntry {
   id?: number;
@@ -192,6 +205,7 @@ type ArtaDB = Dexie & {
   medication_intakes: EntityTable<LocalMedicationIntake, "id">;
   product_scans: EntityTable<LocalProductScan, "id">;
   food_logs: EntityTable<LocalFoodLog, "id">;
+  saved_products: EntityTable<LocalSavedProduct, "id">;
   outbox: EntityTable<OutboxEntry, "id">;
   meta: EntityTable<MetaEntry, "key">;
 };
@@ -234,6 +248,10 @@ db.version(6).stores({
 db.version(7).stores({
   product_scans: "id, scannedAt",
   food_logs: "id, loggedAt",
+});
+// v8 (Fase 4): lemari produk tersimpan — muat ulang cepat + pembanding
+db.version(8).stores({
+  saved_products: "id, updatedAt",
 });
 
 /** Awal hari lokal perangkat (ISO) — batas "hari ini" untuk skor & dashboard. */
