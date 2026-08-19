@@ -124,18 +124,30 @@ Deno.serve(async (req) => {
     const imageUrl = typeof bodyReq.imageUrl === "string" ? bodyReq.imageUrl : "";
     if (!imageUrl) return json({ error: "imageUrl wajib" }, 400);
 
+    // debug opsional: ?debug=1 atau header x-debug → sertakan diagnosa di respons 422
+    const debugMode = new URL(req.url).searchParams.get("debug") === "1" || req.headers.get("x-debug") === "1";
+
     // 1) vision → 2) parse → 3) Zod (retry 1×) → 4) sanity
     let extracted: unknown = null;
+    let lastContent = "";
+    let lastIssue = "";
     for (let attempt = 0; attempt < 2 && extracted === null; attempt++) {
       try {
         const { content } = await callVision(imageUrl);
+        lastContent = content;
         const parsed = extractedLabelSchema.safeParse(parseJsonLoose(content));
         if (parsed.success) extracted = parsed.data;
-      } catch { /* retry lalu menyerah */ }
+        else lastIssue = JSON.stringify(parsed.error.issues).slice(0, 400);
+      } catch (e) { lastIssue = "callVision/parse: " + ((e as Error)?.message ?? String(e)); }
     }
     if (extracted === null) {
+      console.error("nutrition-scan extract gagal", { lastIssue, preview: lastContent.slice(0, 600) });
       // foto bukan label / tak terbaca → pesan ramah (bukan error teknis)
-      return json({ error: "not_a_label", message: "Kami tidak menemukan tabel Informasi Nilai Gizi. Coba foto bagian belakang kemasan." }, 422);
+      return json({
+        error: "not_a_label",
+        message: "Kami tidak menemukan tabel Informasi Nilai Gizi. Coba foto bagian belakang kemasan.",
+        ...(debugMode ? { debug: { model: providerConfig().model, issue: lastIssue, contentPreview: lastContent.slice(0, 800) } } : {}),
+      }, 422);
     }
 
     const sanity = sanityCheck(extracted as Parameters<typeof sanityCheck>[0]);
