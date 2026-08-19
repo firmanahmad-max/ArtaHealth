@@ -133,8 +133,51 @@ export interface LocalMedicationIntake {
   deletedAt: string | null;
 }
 
+/** Riwayat pemindaian label (Fase 4). extracted+verdict di-cache. Idempoten via id. */
+export interface LocalProductScan {
+  id: string;
+  profileId: string;
+  scannedBy: string | null;
+  productName?: string;
+  foodForm: "solid" | "beverage";
+  photoPath?: string;
+  extracted: unknown;
+  userCorrected: boolean;
+  verdict: unknown;
+  scannedAt: string;
+  deletedAt: string | null;
+}
+
+/** Catatan makan (Fase 4) — basis akumulasi GGL Budget harian. Idempoten via id. */
+export interface LocalFoodLog {
+  id: string;
+  profileId: string;
+  name?: string;
+  mealType: "sarapan" | "siang" | "malam" | "camilan" | "sahur" | "iftar";
+  sugarG: number | null;
+  sodiumMg: number | null;
+  fatG: number | null;
+  energyKcal: number | null;
+  sourceScanId: string | null;
+  loggedAt: string;
+  deletedAt: string | null;
+}
+
+/** Lemari produk tersimpan (Fase 4). extracted = NutritionInput. Idempoten via id. */
+export interface LocalSavedProduct {
+  id: string;
+  profileId: string;
+  productName: string;
+  foodForm: "solid" | "beverage";
+  extracted: unknown;
+  lastVerdict: unknown;
+  scanCount: number;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
 export type LogTableName = "hydration_logs" | "sleep_logs" | "activity_logs" | "mood_logs" | "weight_logs";
-export type SyncTableName = LogTableName | "habits" | "habit_completions" | "biomarker_readings" | "monitored_conditions" | "fasting_settings" | "fasting_days" | "medications" | "medication_intakes";
+export type SyncTableName = LogTableName | "habits" | "habit_completions" | "biomarker_readings" | "monitored_conditions" | "fasting_settings" | "fasting_days" | "medications" | "medication_intakes" | "product_scans" | "food_logs" | "saved_products";
 
 export interface OutboxEntry {
   id?: number;
@@ -160,6 +203,9 @@ type ArtaDB = Dexie & {
   fasting_days: EntityTable<LocalFastingDay, "id">;
   medications: EntityTable<LocalMedication, "id">;
   medication_intakes: EntityTable<LocalMedicationIntake, "id">;
+  product_scans: EntityTable<LocalProductScan, "id">;
+  food_logs: EntityTable<LocalFoodLog, "id">;
+  saved_products: EntityTable<LocalSavedProduct, "id">;
   outbox: EntityTable<OutboxEntry, "id">;
   meta: EntityTable<MetaEntry, "key">;
 };
@@ -197,6 +243,15 @@ db.version(5).stores({
 db.version(6).stores({
   medications: "id, isActive",
   medication_intakes: "id, medicationId, [medicationId+scheduledAt]",
+});
+// v7 (Fase 4): Sadar Gizi — riwayat scan + food log (basis GGL Budget)
+db.version(7).stores({
+  product_scans: "id, scannedAt",
+  food_logs: "id, loggedAt",
+});
+// v8 (Fase 4): lemari produk tersimpan — muat ulang cepat + pembanding
+db.version(8).stores({
+  saved_products: "id, updatedAt",
 });
 
 /** Awal hari lokal perangkat (ISO) — batas "hari ini" untuk skor & dashboard. */

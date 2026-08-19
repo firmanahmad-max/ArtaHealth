@@ -14,3 +14,5 @@ export * from "./fasting/safety.ts";
 export * from "./fasting/streak.ts";
 export * from "./fasting/hijri.ts";
 export * from "./medication.ts";
+export * from "./nutrition.ts";
+export * from "./nutrition-extract.ts";

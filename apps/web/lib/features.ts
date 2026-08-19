@@ -32,3 +32,11 @@ export const featureRamadan = (): boolean =>
  */
 export const featureMedication = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_MEDICATION === "1";
+
+/**
+ * Sadar Gizi / scanner label (Fase 4). Default OFF. Ambang gizi = kerangka awal,
+ * wajib diverifikasi vs Permenkes GGL/BPOM + review ahli gizi sebelum nyala
+ * (addendum-sadar-gizi §11). Dev: set NEXT_PUBLIC_FEATURE_NUTRITION=1 di .env.local.
+ */
+export const featureNutrition = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_NUTRITION === "1";
