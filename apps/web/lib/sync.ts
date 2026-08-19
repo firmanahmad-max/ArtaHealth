@@ -5,6 +5,7 @@ import {
   type LocalBiomarkerReading, type LocalMonitoredCondition,
   type LocalFastingSettings, type LocalFastingDay,
   type LocalMedication, type LocalMedicationIntake,
+  type LocalProductScan, type LocalFoodLog,
 } from "./db";
 import { getSupabase, type PrimaryProfile } from "./supabase";
 
@@ -42,7 +43,8 @@ export async function getTargets(): Promise<{ hydrationMl: number; steps: number
 type AnyLocalRow =
   | LocalHydrationLog | LocalSleepLog | LocalActivityLog | LocalMoodLog | LocalWeightLog
   | LocalHabit | LocalHabitCompletion | LocalBiomarkerReading | LocalMonitoredCondition
-  | LocalFastingSettings | LocalFastingDay | LocalMedication | LocalMedicationIntake;
+  | LocalFastingSettings | LocalFastingDay | LocalMedication | LocalMedicationIntake
+  | LocalProductScan | LocalFoodLog;
 
 /** habits & monitored_conditions ber-idempoten lewat PK id (uuid client), bukan client_id. */
 const CONFLICT_KEY: Record<SyncTableName, string> = {
@@ -59,6 +61,8 @@ const CONFLICT_KEY: Record<SyncTableName, string> = {
   fasting_days: "profile_id,date",      // satu baris per (profil, tanggal)
   medications: "id",
   medication_intakes: "id",
+  product_scans: "id",
+  food_logs: "id",
 };
 
 function toServerRow(table: SyncTableName, row: AnyLocalRow): Record<string, unknown> {
@@ -121,6 +125,23 @@ function toServerRow(table: SyncTableName, row: AnyLocalRow): Record<string, unk
     return {
       id: r.id, medication_id: r.medicationId, profile_id: r.profileId,
       scheduled_at: r.scheduledAt, taken_at: r.takenAt, status: r.status, deleted_at: r.deletedAt,
+    };
+  }
+  if (table === "product_scans") {
+    const r = row as LocalProductScan;
+    return {
+      id: r.id, profile_id: r.profileId, scanned_by: r.scannedBy,
+      product_name: r.productName ?? null, food_form: r.foodForm, photo_path: r.photoPath ?? null,
+      extracted: r.extracted, user_corrected: r.userCorrected, verdict: r.verdict,
+      scanned_at: r.scannedAt, deleted_at: r.deletedAt,
+    };
+  }
+  if (table === "food_logs") {
+    const r = row as LocalFoodLog;
+    return {
+      id: r.id, profile_id: r.profileId, name: r.name ?? null, meal_type: r.mealType,
+      sugar_g: r.sugarG, sodium_mg: r.sodiumMg, fat_g: r.fatG, energy_kcal: r.energyKcal,
+      source_scan_id: r.sourceScanId, logged_at: r.loggedAt, deleted_at: r.deletedAt,
     };
   }
   const base = { profile_id: (row as { profileId: string }).profileId, client_id: (row as { clientId: string }).clientId, deleted_at: (row as { deletedAt: string | null }).deletedAt };
@@ -249,6 +270,26 @@ function fromServerRow(table: SyncTableName, r: ServerRow): AnyLocalRow {
       status: r.status, deletedAt: (r.deleted_at as string | null) ?? null,
     } as LocalMedicationIntake;
   }
+  if (table === "product_scans") {
+    return {
+      id: r.id, profileId: r.profile_id, scannedBy: (r.scanned_by as string | null) ?? null,
+      productName: (r.product_name as string | null) ?? undefined,
+      foodForm: (r.food_form as "solid" | "beverage") ?? "solid",
+      photoPath: (r.photo_path as string | null) ?? undefined,
+      extracted: r.extracted ?? null, userCorrected: !!r.user_corrected, verdict: r.verdict ?? null,
+      scannedAt: r.scanned_at, deletedAt: (r.deleted_at as string | null) ?? null,
+    } as LocalProductScan;
+  }
+  if (table === "food_logs") {
+    return {
+      id: r.id, profileId: r.profile_id, name: (r.name as string | null) ?? undefined,
+      mealType: (r.meal_type as LocalFoodLog["mealType"]) ?? "camilan",
+      sugarG: (r.sugar_g as number | null) ?? null, sodiumMg: (r.sodium_mg as number | null) ?? null,
+      fatG: (r.fat_g as number | null) ?? null, energyKcal: (r.energy_kcal as number | null) ?? null,
+      sourceScanId: (r.source_scan_id as string | null) ?? null,
+      loggedAt: r.logged_at, deletedAt: (r.deleted_at as string | null) ?? null,
+    } as LocalFoodLog;
+  }
   const base = {
     clientId: r.client_id as string,
     profileId: r.profile_id as string,
@@ -277,6 +318,7 @@ const SYNC_TABLES: SyncTableName[] = [
   "biomarker_readings", "monitored_conditions",
   "fasting_settings", "fasting_days",
   "medications", "medication_intakes", // medications sebelum intakes (FK medication_id)
+  "product_scans", "food_logs", // scans sebelum food_logs (FK source_scan_id)
 ];
 const PULL_PAGE = 500;
 let pulling = false;
@@ -323,7 +365,8 @@ async function pullTable(table: SyncTableName, profileId: string): Promise<void>
     );
     const serverKeyOf = (r: ServerRow): string => {
       if (table === "habits" || table === "monitored_conditions" ||
-          table === "medications" || table === "medication_intakes") return r.id as string;
+          table === "medications" || table === "medication_intakes" ||
+          table === "product_scans" || table === "food_logs") return r.id as string;
       if (table === "fasting_settings") return r.profile_id as string;      // kunci Dexie = profileId
       if (table === "fasting_days") return `${r.profile_id}:${r.date}`;      // kunci Dexie = `${profileId}:${date}`
       return r.client_id as string;
