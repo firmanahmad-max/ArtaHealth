@@ -176,8 +176,38 @@ export interface LocalSavedProduct {
   deletedAt: string | null;
 }
 
+/** Satu alergen yang dipantau (Big-9 atau kustom). */
+export interface AllergenEntry {
+  key: string;
+  label?: string;
+  terms?: string[];
+  severity?: "mild" | "severe";
+  custom?: boolean;
+}
+
+/** Kartu alergi — satu per profil (Fase 4). Kunci profileId (pola fasting_settings). */
+export interface LocalAllergyCard {
+  profileId: string;
+  allergens: AllergenEntry[];
+  notes?: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
+/** Anggota rumah yang dipindaikan (Fase 4 · NG-4b) — persona gizi ringan. Idempoten via id. */
+export interface LocalNutritionEater {
+  id: string;
+  profileId: string;              // pemilik akun
+  name: string;
+  relation?: string;              // anak | orang_tua | pasangan | lainnya
+  conditions: string[];           // hypertension | diabetes | dyslipidemia | gout
+  allergens: AllergenEntry[];
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
 export type LogTableName = "hydration_logs" | "sleep_logs" | "activity_logs" | "mood_logs" | "weight_logs";
-export type SyncTableName = LogTableName | "habits" | "habit_completions" | "biomarker_readings" | "monitored_conditions" | "fasting_settings" | "fasting_days" | "medications" | "medication_intakes" | "product_scans" | "food_logs" | "saved_products";
+export type SyncTableName = LogTableName | "habits" | "habit_completions" | "biomarker_readings" | "monitored_conditions" | "fasting_settings" | "fasting_days" | "medications" | "medication_intakes" | "product_scans" | "food_logs" | "saved_products" | "allergy_cards" | "nutrition_eaters";
 
 export interface OutboxEntry {
   id?: number;
@@ -206,6 +236,8 @@ type ArtaDB = Dexie & {
   product_scans: EntityTable<LocalProductScan, "id">;
   food_logs: EntityTable<LocalFoodLog, "id">;
   saved_products: EntityTable<LocalSavedProduct, "id">;
+  allergy_cards: EntityTable<LocalAllergyCard, "profileId">;
+  nutrition_eaters: EntityTable<LocalNutritionEater, "id">;
   outbox: EntityTable<OutboxEntry, "id">;
   meta: EntityTable<MetaEntry, "key">;
 };
@@ -252,6 +284,14 @@ db.version(7).stores({
 // v8 (Fase 4): lemari produk tersimpan — muat ulang cepat + pembanding
 db.version(8).stores({
   saved_products: "id, updatedAt",
+});
+// v9 (Fase 4): kartu alergi — satu per profil (kunci profileId)
+db.version(9).stores({
+  allergy_cards: "profileId",
+});
+// v10 (Fase 4): anggota rumah yang dipindaikan — persona gizi ringan
+db.version(10).stores({
+  nutrition_eaters: "id, updatedAt",
 });
 
 /** Awal hari lokal perangkat (ISO) — batas "hari ini" untuk skor & dashboard. */
