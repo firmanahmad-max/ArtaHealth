@@ -3,15 +3,16 @@ import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useToast } from "@arta/design-system";
 import {
-  dailyBudget, type NutritionInput, type NutritionVerdict, type NutritionZone,
-  type NutritionCondition, type Nutrient, type AllergenMatch,
+  dailyBudget, detectAllergens,
+  type NutritionInput, type NutritionVerdict, type NutritionZone,
+  type NutritionCondition, type Nutrient, type AllergenMatch, type SelectedAllergen,
 } from "@arta/core";
 import type { LocalSavedProduct } from "@/lib/db";
 import {
-  computeVerdict, nutritionConditions, todayGGLUsage, logFood, saveScan,
+  computeVerdict, todayGGLUsage, logFood, saveScan,
   scanLabel, savedProducts, saveProduct, removeSavedProduct,
 } from "@/lib/nutrition";
-import { detectForScan } from "@/lib/allergy";
+import { eaters, eaterContext, type EaterContext } from "@/lib/eaters";
 
 /**
  * Sadar Gizi — kartu hasil verdict (Fase 4 · NG-3). Jalur entri MANUAL + PINDAI FOTO
@@ -78,14 +79,19 @@ function warnsFrom(recheck: string[]): Set<keyof Form> {
   return set;
 }
 
+const SELF_CONTEXT: EaterContext = { id: "self", name: "Saya", conditions: [], allergens: [], isSelf: true };
+
 export function NutritionScanCard() {
   const { show } = useToast();
-  const conditions = useLiveQuery(() => nutritionConditions(), []) ?? [];
   const usage = useLiveQuery(() => todayGGLUsage(), []) ?? { sugar: 0, sodium: 0, fat: 0 };
   const saved = useLiveQuery(() => savedProducts(), []) ?? [];
+  const eaterList = useLiveQuery(() => eaters(), []) ?? [];
+
+  const [eaterId, setEaterId] = useState<string>("self");
+  const context = useLiveQuery(() => eaterContext(eaterId), [eaterId]) ?? SELF_CONTEXT;
 
   const [form, setForm] = useState<Form>(EMPTY);
-  const [result, setResult] = useState<{ input: NutritionInput; verdict: NutritionVerdict; allergens: AllergenMatch[] } | null>(null);
+  const [result, setResult] = useState<{ input: NutritionInput; ingredients: string } | null>(null);
   const [basis, setBasis] = useState<"package" | "serving">("package");
   const [logged, setLogged] = useState(false);
   const [warns, setWarns] = useState<Set<keyof Form>>(new Set());
@@ -93,6 +99,11 @@ export function NutritionScanCard() {
   const [scanning, setScanning] = useState(false);
   const [showLemari, setShowLemari] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // verdict & alergen DIHITUNG dari konteks orang terpilih → ganti orang = live re-personalisasi
+  const verdict = result ? computeVerdict(result.input, context.conditions) : null;
+  const allergens: AllergenMatch[] = result && result.ingredients
+    ? detectAllergens(result.ingredients, context.allergens as SelectedAllergen[]) : [];
 
   const set = (k: keyof Form, v: string) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -119,7 +130,7 @@ export function NutritionScanCard() {
     reader.readAsDataURL(file);
   };
 
-  const evaluate = async () => {
+  const evaluate = () => {
     const size = num(form.servingSize);
     if (size <= 0) {
       show({ variant: "info", message: "Isi ukuran takaran saji (g/ml) lebih dari 0." });
@@ -135,8 +146,7 @@ export function NutritionScanCard() {
         fiberG: num(form.fiberG), proteinG: num(form.proteinG),
       },
     };
-    const allergens = await detectForScan(form.ingredients);
-    setResult({ input, verdict: computeVerdict(input, conditions), allergens });
+    setResult({ input, ingredients: form.ingredients });
     setBasis("package"); setLogged(false); setScanMsg(null);
   };
 
@@ -145,7 +155,7 @@ export function NutritionScanCard() {
   const loadSaved = (p: LocalSavedProduct) => {
     const input = p.extracted as NutritionInput;
     setForm(inputToForm(input, p.productName));
-    setResult({ input, verdict: computeVerdict(input, conditions), allergens: [] });
+    setResult({ input, ingredients: "" });
     setBasis("package"); setLogged(false); setWarns(new Set()); setScanMsg(null); setShowLemari(false);
   };
 
@@ -159,6 +169,26 @@ export function NutritionScanCard() {
           {result && <button onClick={reset} style={ghostBtn}>Produk lain</button>}
         </div>
       </div>
+
+      {eaterList.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11, color: "var(--ah-text-tertiary)" }}>Pindai untuk:</span>
+          <div style={{ display: "inline-flex", gap: 4, background: "var(--ah-surface-2)", borderRadius: "var(--ah-r-full)", padding: 3, flexWrap: "wrap" }}>
+            {[{ id: "self", name: "Saya" }, ...eaterList].map((e) => (
+              <button
+                key={e.id} onClick={() => setEaterId(e.id)} aria-pressed={eaterId === e.id}
+                style={{
+                  minHeight: 28, padding: "0 12px", borderRadius: "var(--ah-r-full)", border: "none", cursor: "pointer",
+                  background: eaterId === e.id ? "var(--ah-gradient-hero)" : "transparent",
+                  color: eaterId === e.id ? "#fff" : "var(--ah-text-secondary)", fontSize: 11, fontWeight: 700,
+                }}
+              >
+                {e.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {showLemari && (
         <Lemari products={saved} onLoad={loadSaved} onRemove={(id) => void removeSavedProduct(id)} />
@@ -205,12 +235,12 @@ export function NutritionScanCard() {
                 style={{ ...input, minHeight: 56, padding: "10px 12px", resize: "vertical", lineHeight: 1.5 }}
               />
             </label>
-            <button onClick={() => void evaluate()} style={primaryBtn}>Nilai gizi</button>
+            <button onClick={evaluate} style={primaryBtn}>Nilai gizi</button>
           </div>
         </>
-      ) : (
+      ) : verdict && (
         <VerdictView
-          input={result.input} verdict={result.verdict} allergens={result.allergens} conditions={conditions}
+          input={result.input} verdict={verdict} allergens={allergens} context={context}
           usage={usage} basis={basis} onBasis={setBasis} name={form.name} logged={logged}
           saved={saved}
           onLog={async () => {
@@ -222,7 +252,7 @@ export function NutritionScanCard() {
               fatG: (s.totalFatG ?? 0) * mult, energyKcal: (s.energyKcal ?? 0) * mult,
               sourceScanId: await saveScan({
                 productName: form.name || undefined, foodForm: result.input.foodForm,
-                extracted: result.input, verdict: result.verdict,
+                extracted: result.input, verdict,
               }),
             });
             setLogged(true);
@@ -230,7 +260,7 @@ export function NutritionScanCard() {
           }}
           onSaveProduct={async () => {
             if (!form.name.trim()) { show({ variant: "info", message: "Beri nama produk dulu untuk menyimpannya ke lemari." }); return; }
-            await saveProduct({ productName: form.name, foodForm: result.input.foodForm, input: result.input, verdict: result.verdict });
+            await saveProduct({ productName: form.name, foodForm: result.input.foodForm, input: result.input, verdict });
             show({ message: `“${form.name.trim()}” disimpan ke lemari` });
           }}
         />
@@ -261,14 +291,15 @@ function AllergenAlert({ matches }: { matches: AllergenMatch[] }) {
 }
 
 function VerdictView({
-  input, verdict, allergens, conditions, usage, basis, onBasis, name, logged, saved, onLog, onSaveProduct,
+  input, verdict, allergens, context, usage, basis, onBasis, name, logged, saved, onLog, onSaveProduct,
 }: {
-  input: NutritionInput; verdict: NutritionVerdict; allergens: AllergenMatch[]; conditions: NutritionCondition[];
+  input: NutritionInput; verdict: NutritionVerdict; allergens: AllergenMatch[]; context: EaterContext;
   usage: { sugar: number; sodium: number; fat: number };
   basis: "package" | "serving"; onBasis: (b: "package" | "serving") => void;
   name: string; logged: boolean; saved: LocalSavedProduct[];
   onLog: () => Promise<void>; onSaveProduct: () => Promise<void>;
 }) {
+  const conditions = context.conditions;
   const budget = dailyBudget(conditions);
   const mult = basis === "package" ? input.servingsPerPack : 1;
   const s = input.serving;
@@ -295,7 +326,9 @@ function VerdictView({
         <span style={{ fontSize: 26 }}>{ZONE_EMOJI[verdict.overall]}</span>
         <div style={{ minWidth: 0 }}>
           <p style={{ fontSize: 15, fontWeight: 800, color: "var(--ah-text-primary)" }}>{verdict.headline}</p>
-          {name && <p style={{ fontSize: 12, color: "var(--ah-text-tertiary)" }}>{name}</p>}
+          <p style={{ fontSize: 12, color: "var(--ah-text-tertiary)" }}>
+            {name}{name && !context.isSelf ? " · " : ""}{!context.isSelf && <span style={{ color: "var(--ah-cyan, #22D3EE)", fontWeight: 700 }}>untuk {context.name}</span>}
+          </p>
         </div>
       </div>
       <p style={{ fontSize: 13, color: "var(--ah-text-primary)", lineHeight: 1.5 }}>{verdict.reason}</p>
