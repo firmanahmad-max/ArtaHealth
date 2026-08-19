@@ -55,31 +55,44 @@ const SYSTEM = [
 async function callVision(imageUrl: string): Promise<{ content: string }> {
   const cfg = providerConfig();
   if (!cfg.baseUrl || !cfg.apiKey) throw new Error("provider belum dikonfigurasi");
+  // Reasoning model (GPT-5 / o-series): TOLAK temperature≠1 & max_tokens → wajib
+  // max_completion_tokens; reasoning_effort minimal agar cepat + sisakan token utk JSON.
+  const isReasoning = /^(gpt-5|o[0-9])/i.test(cfg.model);
+  const payload: Record<string, unknown> = {
+    model: cfg.model,
+    messages: [
+      { role: "system", content: SYSTEM },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "Ekstrak tabel Informasi Nilai Gizi & daftar bahan dari foto ini menjadi JSON." },
+          { type: "image_url", image_url: { url: imageUrl } },
+        ],
+      },
+    ],
+    response_format: { type: "json_object" },
+  };
+  if (isReasoning) {
+    payload.max_completion_tokens = 2000;
+    payload.reasoning_effort = "minimal";
+  } else {
+    payload.temperature = 0;
+    payload.max_tokens = 900;
+  }
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30_000);
+  const timeout = setTimeout(() => controller.abort(), 45_000);
   try {
     const res = await fetch(`${cfg.baseUrl.replace(/\/$/, "")}/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${cfg.apiKey}` },
-      body: JSON.stringify({
-        model: cfg.model,
-        messages: [
-          { role: "system", content: SYSTEM },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: "Ekstrak tabel Informasi Nilai Gizi & daftar bahan dari foto ini menjadi JSON." },
-              { type: "image_url", image_url: { url: imageUrl } },
-            ],
-          },
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0,
-        max_tokens: 900,
-      }),
+      body: JSON.stringify(payload),
       signal: controller.signal,
     });
-    if (!res.ok) throw new Error(`provider ${res.status}`);
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      console.error("nutrition-scan vision provider error", res.status, errText.slice(0, 500));
+      throw new Error(`provider ${res.status}`);
+    }
     const body = await res.json();
     return { content: body?.choices?.[0]?.message?.content ?? "" };
   } finally {
