@@ -4,13 +4,14 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useToast } from "@arta/design-system";
 import {
   dailyBudget, type NutritionInput, type NutritionVerdict, type NutritionZone,
-  type NutritionCondition, type Nutrient,
+  type NutritionCondition, type Nutrient, type AllergenMatch,
 } from "@arta/core";
 import type { LocalSavedProduct } from "@/lib/db";
 import {
   computeVerdict, nutritionConditions, todayGGLUsage, logFood, saveScan,
   scanLabel, savedProducts, saveProduct, removeSavedProduct,
 } from "@/lib/nutrition";
+import { detectForScan } from "@/lib/allergy";
 
 /**
  * Sadar Gizi — kartu hasil verdict (Fase 4 · NG-3). Jalur entri MANUAL + PINDAI FOTO
@@ -18,7 +19,8 @@ import {
  * prinsip addendum: traffic-light per 100 g/ml + dampak GGL Budget PER KEMASAN
  * (bongkar jebakan takaran saji) + personalisasi kondisi terpantau. Verdict
  * deterministik (engine core), bukan AI. NG-3b menambah: konfirmasi field confidence
- * rendah, lemari produk (Simpan Produk), dan Pindai Pembanding.
+ * rendah, lemari produk (Simpan Produk), dan Pindai Pembanding. NG-4 menambah deteksi
+ * ALERGEN dari daftar bahan (alert di atas verdict; hanya menandai kemungkinan).
  * Di balik flag NEXT_PUBLIC_FEATURE_NUTRITION.
  * ⚠️ Ambang gizi masih kerangka — menunggu review ahli gizi/BPOM sebelum flag nyala.
  */
@@ -35,12 +37,12 @@ const NUTRIENT_LABEL: Record<Nutrient, string> = {
 type Form = {
   name: string; foodForm: "solid" | "beverage"; servingSize: string; servingsPerPack: string;
   energyKcal: string; sugarG: string; sodiumMg: string; satFatG: string;
-  totalFatG: string; carbG: string; fiberG: string; proteinG: string;
+  totalFatG: string; carbG: string; fiberG: string; proteinG: string; ingredients: string;
 };
 const EMPTY: Form = {
   name: "", foodForm: "solid", servingSize: "", servingsPerPack: "1",
   energyKcal: "", sugarG: "", sodiumMg: "", satFatG: "",
-  totalFatG: "", carbG: "", fiberG: "", proteinG: "",
+  totalFatG: "", carbG: "", fiberG: "", proteinG: "", ingredients: "",
 };
 
 const num = (s: string): number => {
@@ -56,7 +58,7 @@ function inputToForm(input: NutritionInput, name?: string): Form {
     servingSize: str(input.servingSize), servingsPerPack: str(input.servingsPerPack),
     energyKcal: str(s.energyKcal), sugarG: str(s.sugarG), sodiumMg: str(s.sodiumMg),
     satFatG: str(s.satFatG), totalFatG: str(s.totalFatG), carbG: str(s.carbG),
-    fiberG: str(s.fiberG), proteinG: str(s.proteinG),
+    fiberG: str(s.fiberG), proteinG: str(s.proteinG), ingredients: "",
   };
 }
 
@@ -83,7 +85,7 @@ export function NutritionScanCard() {
   const saved = useLiveQuery(() => savedProducts(), []) ?? [];
 
   const [form, setForm] = useState<Form>(EMPTY);
-  const [result, setResult] = useState<{ input: NutritionInput; verdict: NutritionVerdict } | null>(null);
+  const [result, setResult] = useState<{ input: NutritionInput; verdict: NutritionVerdict; allergens: AllergenMatch[] } | null>(null);
   const [basis, setBasis] = useState<"package" | "serving">("package");
   const [logged, setLogged] = useState(false);
   const [warns, setWarns] = useState<Set<keyof Form>>(new Set());
@@ -107,7 +109,7 @@ export function NutritionScanCard() {
       const res = await scanLabel(String(reader.result));
       setScanning(false);
       if (!res.ok) { setScanMsg(res.message); return; }
-      setForm(inputToForm(res.input, res.extracted.product_guess));
+      setForm({ ...inputToForm(res.input, res.extracted.product_guess), ingredients: res.extracted.ingredients_raw ?? "" });
       setWarns(warnsFrom(res.sanity.recheck));
       setResult(null);
       setScanMsg(res.sanity.needsConfirmation
@@ -117,7 +119,7 @@ export function NutritionScanCard() {
     reader.readAsDataURL(file);
   };
 
-  const evaluate = () => {
+  const evaluate = async () => {
     const size = num(form.servingSize);
     if (size <= 0) {
       show({ variant: "info", message: "Isi ukuran takaran saji (g/ml) lebih dari 0." });
@@ -133,7 +135,8 @@ export function NutritionScanCard() {
         fiberG: num(form.fiberG), proteinG: num(form.proteinG),
       },
     };
-    setResult({ input, verdict: computeVerdict(input, conditions) });
+    const allergens = await detectForScan(form.ingredients);
+    setResult({ input, verdict: computeVerdict(input, conditions), allergens });
     setBasis("package"); setLogged(false); setScanMsg(null);
   };
 
@@ -142,7 +145,7 @@ export function NutritionScanCard() {
   const loadSaved = (p: LocalSavedProduct) => {
     const input = p.extracted as NutritionInput;
     setForm(inputToForm(input, p.productName));
-    setResult({ input, verdict: computeVerdict(input, conditions) });
+    setResult({ input, verdict: computeVerdict(input, conditions), allergens: [] });
     setBasis("package"); setLogged(false); setWarns(new Set()); setScanMsg(null); setShowLemari(false);
   };
 
@@ -193,12 +196,21 @@ export function NutritionScanCard() {
               <Field label="Serat" unit="g" value={form.fiberG} warn={warns.has("fiberG")} onChange={(v) => set("fiberG", v)} />
               <Field label="Protein" unit="g" value={form.proteinG} warn={warns.has("proteinG")} onChange={(v) => set("proteinG", v)} />
             </div>
-            <button onClick={evaluate} style={primaryBtn}>Nilai gizi</button>
+            <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <span style={sectionLabel}>Daftar bahan <span style={{ textTransform: "none", fontWeight: 500, opacity: 0.7 }}>(untuk cek alergen)</span></span>
+              <textarea
+                value={form.ingredients} onChange={(e) => set("ingredients", e.target.value)}
+                placeholder="Tempel daftar bahan, mis. Tepung terigu, gula, susu bubuk, lesitin kedelai…"
+                rows={2}
+                style={{ ...input, minHeight: 56, padding: "10px 12px", resize: "vertical", lineHeight: 1.5 }}
+              />
+            </label>
+            <button onClick={() => void evaluate()} style={primaryBtn}>Nilai gizi</button>
           </div>
         </>
       ) : (
         <VerdictView
-          input={result.input} verdict={result.verdict} conditions={conditions}
+          input={result.input} verdict={result.verdict} allergens={result.allergens} conditions={conditions}
           usage={usage} basis={basis} onBasis={setBasis} name={form.name} logged={logged}
           saved={saved}
           onLog={async () => {
@@ -230,10 +242,28 @@ export function NutritionScanCard() {
   );
 }
 
+function AllergenAlert({ matches }: { matches: AllergenMatch[] }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, background: "rgba(248,113,113,0.14)", border: "1.5px solid var(--ah-score-low)", borderRadius: "var(--ah-r-inner)", padding: "12px 14px" }}>
+      <p style={{ fontSize: 13, fontWeight: 800, color: "var(--ah-text-primary)" }}>⚠️ Kemungkinan mengandung alergen Anda</p>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {matches.map((m) => (
+          <span key={m.key} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, color: "var(--ah-text-primary)", background: "var(--ah-surface-1)", borderRadius: "var(--ah-r-full)", padding: "5px 10px" }}>
+            {m.icon} {m.label} <span style={{ color: "var(--ah-text-tertiary)", fontWeight: 500 }}>· “{m.matchedTerm}”</span>
+          </span>
+        ))}
+      </div>
+      <p style={{ fontSize: 10, color: "var(--ah-text-secondary)", lineHeight: 1.5 }}>
+        Ditandai dari daftar bahan — bukan jaminan. Label bisa tak lengkap / ada kontaminasi silang; cek kemasan langsung.
+      </p>
+    </div>
+  );
+}
+
 function VerdictView({
-  input, verdict, conditions, usage, basis, onBasis, name, logged, saved, onLog, onSaveProduct,
+  input, verdict, allergens, conditions, usage, basis, onBasis, name, logged, saved, onLog, onSaveProduct,
 }: {
-  input: NutritionInput; verdict: NutritionVerdict; conditions: NutritionCondition[];
+  input: NutritionInput; verdict: NutritionVerdict; allergens: AllergenMatch[]; conditions: NutritionCondition[];
   usage: { sugar: number; sodium: number; fat: number };
   basis: "package" | "serving"; onBasis: (b: "package" | "serving") => void;
   name: string; logged: boolean; saved: LocalSavedProduct[];
@@ -260,6 +290,7 @@ function VerdictView({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {allergens.length > 0 && <AllergenAlert matches={allergens} />}
       <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--ah-surface-2)", borderRadius: "var(--ah-r-inner)", padding: "12px 14px", borderLeft: `4px solid ${ZONE_COLOR[verdict.overall]}` }}>
         <span style={{ fontSize: 26 }}>{ZONE_EMOJI[verdict.overall]}</span>
         <div style={{ minWidth: 0 }}>

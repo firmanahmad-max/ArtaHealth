@@ -176,8 +176,26 @@ export interface LocalSavedProduct {
   deletedAt: string | null;
 }
 
+/** Satu alergen yang dipantau (Big-9 atau kustom). */
+export interface AllergenEntry {
+  key: string;
+  label?: string;
+  terms?: string[];
+  severity?: "mild" | "severe";
+  custom?: boolean;
+}
+
+/** Kartu alergi — satu per profil (Fase 4). Kunci profileId (pola fasting_settings). */
+export interface LocalAllergyCard {
+  profileId: string;
+  allergens: AllergenEntry[];
+  notes?: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
 export type LogTableName = "hydration_logs" | "sleep_logs" | "activity_logs" | "mood_logs" | "weight_logs";
-export type SyncTableName = LogTableName | "habits" | "habit_completions" | "biomarker_readings" | "monitored_conditions" | "fasting_settings" | "fasting_days" | "medications" | "medication_intakes" | "product_scans" | "food_logs" | "saved_products";
+export type SyncTableName = LogTableName | "habits" | "habit_completions" | "biomarker_readings" | "monitored_conditions" | "fasting_settings" | "fasting_days" | "medications" | "medication_intakes" | "product_scans" | "food_logs" | "saved_products" | "allergy_cards";
 
 export interface OutboxEntry {
   id?: number;
@@ -206,6 +224,7 @@ type ArtaDB = Dexie & {
   product_scans: EntityTable<LocalProductScan, "id">;
   food_logs: EntityTable<LocalFoodLog, "id">;
   saved_products: EntityTable<LocalSavedProduct, "id">;
+  allergy_cards: EntityTable<LocalAllergyCard, "profileId">;
   outbox: EntityTable<OutboxEntry, "id">;
   meta: EntityTable<MetaEntry, "key">;
 };
@@ -252,6 +271,10 @@ db.version(7).stores({
 // v8 (Fase 4): lemari produk tersimpan — muat ulang cepat + pembanding
 db.version(8).stores({
   saved_products: "id, updatedAt",
+});
+// v9 (Fase 4): kartu alergi — satu per profil (kunci profileId)
+db.version(9).stores({
+  allergy_cards: "profileId",
 });
 
 /** Awal hari lokal perangkat (ISO) — batas "hari ini" untuk skor & dashboard. */

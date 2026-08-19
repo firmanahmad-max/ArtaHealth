@@ -5,7 +5,7 @@ import {
   type LocalBiomarkerReading, type LocalMonitoredCondition,
   type LocalFastingSettings, type LocalFastingDay,
   type LocalMedication, type LocalMedicationIntake,
-  type LocalProductScan, type LocalFoodLog, type LocalSavedProduct,
+  type LocalProductScan, type LocalFoodLog, type LocalSavedProduct, type LocalAllergyCard,
 } from "./db";
 import { getSupabase, type PrimaryProfile } from "./supabase";
 
@@ -44,7 +44,7 @@ type AnyLocalRow =
   | LocalHydrationLog | LocalSleepLog | LocalActivityLog | LocalMoodLog | LocalWeightLog
   | LocalHabit | LocalHabitCompletion | LocalBiomarkerReading | LocalMonitoredCondition
   | LocalFastingSettings | LocalFastingDay | LocalMedication | LocalMedicationIntake
-  | LocalProductScan | LocalFoodLog | LocalSavedProduct;
+  | LocalProductScan | LocalFoodLog | LocalSavedProduct | LocalAllergyCard;
 
 /** habits & monitored_conditions ber-idempoten lewat PK id (uuid client), bukan client_id. */
 const CONFLICT_KEY: Record<SyncTableName, string> = {
@@ -64,6 +64,7 @@ const CONFLICT_KEY: Record<SyncTableName, string> = {
   product_scans: "id",
   food_logs: "id",
   saved_products: "id",
+  allergy_cards: "profile_id",           // satu kartu per profil
 };
 
 function toServerRow(table: SyncTableName, row: AnyLocalRow): Record<string, unknown> {
@@ -151,6 +152,12 @@ function toServerRow(table: SyncTableName, row: AnyLocalRow): Record<string, unk
       id: r.id, profile_id: r.profileId, product_name: r.productName, food_form: r.foodForm,
       extracted: r.extracted, last_verdict: r.lastVerdict ?? null, scan_count: r.scanCount,
       deleted_at: r.deletedAt,
+    };
+  }
+  if (table === "allergy_cards") {
+    const r = row as LocalAllergyCard;
+    return {
+      profile_id: r.profileId, allergens: r.allergens, notes: r.notes ?? null, deleted_at: r.deletedAt,
     };
   }
   const base = { profile_id: (row as { profileId: string }).profileId, client_id: (row as { clientId: string }).clientId, deleted_at: (row as { deletedAt: string | null }).deletedAt };
@@ -308,6 +315,13 @@ function fromServerRow(table: SyncTableName, r: ServerRow): AnyLocalRow {
       updatedAt: r.updated_at, deletedAt: (r.deleted_at as string | null) ?? null,
     } as LocalSavedProduct;
   }
+  if (table === "allergy_cards") {
+    return {
+      profileId: r.profile_id, allergens: (r.allergens as LocalAllergyCard["allergens"]) ?? [],
+      notes: (r.notes as string | null) ?? undefined,
+      updatedAt: r.updated_at, deletedAt: (r.deleted_at as string | null) ?? null,
+    } as LocalAllergyCard;
+  }
   const base = {
     clientId: r.client_id as string,
     profileId: r.profile_id as string,
@@ -337,7 +351,7 @@ const SYNC_TABLES: SyncTableName[] = [
   "fasting_settings", "fasting_days",
   "medications", "medication_intakes", // medications sebelum intakes (FK medication_id)
   "product_scans", "food_logs", // scans sebelum food_logs (FK source_scan_id)
-  "saved_products",
+  "saved_products", "allergy_cards",
 ];
 const PULL_PAGE = 500;
 let pulling = false;
@@ -387,7 +401,7 @@ async function pullTable(table: SyncTableName, profileId: string): Promise<void>
           table === "medications" || table === "medication_intakes" ||
           table === "product_scans" || table === "food_logs" ||
           table === "saved_products") return r.id as string;
-      if (table === "fasting_settings") return r.profile_id as string;      // kunci Dexie = profileId
+      if (table === "fasting_settings" || table === "allergy_cards") return r.profile_id as string; // kunci Dexie = profileId
       if (table === "fasting_days") return `${r.profile_id}:${r.date}`;      // kunci Dexie = `${profileId}:${date}`
       return r.client_id as string;
     };
