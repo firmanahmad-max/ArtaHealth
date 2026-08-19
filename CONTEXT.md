@@ -93,6 +93,8 @@ Sprint 5–6: AI Gateway + prompt registry + Safety Guard + Daily Insight + AI C
 | `master-roadmap.md` | Urutan fase, gerbang keputusan, backlog (v1.0-MR) |
 | `deploy-checklist.md` | Checklist deploy produksi + smoke test + dogfood Fase 1 |
 | `supabase-setup.md` | Panduan rinci setup Supabase (db, Vault, auth, Edge Functions, cron) |
+| `gate-imsakiyah-validation.md` | Gerbang §10: lembar validasi imsak/maghrib vs Kemenag (≥5 kota) |
+| `gate-content-review-33.md` | Gerbang §10: paket review konten medis-puasa & keislaman (§3.3) |
 | `prototypes/*.jsx` | 2 prototipe React (referensi UI & interaksi) |
 | `clinical-refs/` | PDF guideline resmi (diisi saat verifikasi ambang) |
 
