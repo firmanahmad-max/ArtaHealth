@@ -22,7 +22,7 @@ export const perServingSchema = z.object({
   sodium_mg: amount,
 });
 
-export const extractedLabelSchema = z.object({
+const extractedLabelObject = z.object({
   product_guess: z.string().optional(),
   serving_size: z.object({ value: z.number().positive(), unit: z.enum(["g", "ml"]) }),
   servings_per_pack: z.number().positive(),
@@ -32,6 +32,25 @@ export const extractedLabelSchema = z.object({
   ingredients_raw: z.string().optional(),
   confidence: z.record(z.string(), z.number().min(0).max(1)).optional(),
 });
+
+/**
+ * Buang key bernilai `null` (jadikan undefined) sebelum validasi. Model vision
+ * (mis. GPT-5) kerap mengisi field kosong dengan `null` eksplisit — tanpa ini,
+ * `ingredients_raw: null` dll. gagal `.optional()` ("expected string, received null").
+ */
+function stripNulls(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(stripNulls);
+  if (v && typeof v === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+      if (val !== null) out[k] = stripNulls(val);
+    }
+    return out;
+  }
+  return v;
+}
+
+export const extractedLabelSchema = z.preprocess(stripNulls, extractedLabelObject);
 
 export type ExtractedLabel = z.infer<typeof extractedLabelSchema>;
 
