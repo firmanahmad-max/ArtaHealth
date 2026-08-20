@@ -10,8 +10,8 @@
  *  · Anggaran, bukan larangan. Personalisasi ke monitored_conditions.
  *  · Bukan resep medis: anjuran maksimum "batasi / cari alternatif / diskusikan dokter".
  *
- * ⚠️ Ambang di DEFAULT_NUTRITION_BANDS = cermin seed migration 0016 (kerangka).
- *    WAJIB diverifikasi ahli gizi/medis sebelum fitur dibuka (checklist §11).
+ * Ambang di DEFAULT_NUTRITION_BANDS = cermin seed migration 0016. DITINJAU &
+ * disetujui ahli gizi (gerbang §10-§11 lulus, Agu 2026) — lihat docs/gate-nutrition-launch.md.
  */
 
 export type Nutrient = "sugar" | "sodium" | "sat_fat" | "total_fat" | "fiber" | "protein";
@@ -119,7 +119,7 @@ export function dailyBudget(conditions: NutritionCondition[]): { sugar: number; 
   const set = new Set(conditions);
   return {
     sugar: GGL_BUDGET.sugar,
-    // ⚠️ 1500 mg = kerangka utk pemantauan tensi, menunggu verifikasi medis (§4.2)
+    // 1500 mg utk pemantauan tensi — ditinjau & disetujui (gerbang §4.2 lulus)
     sodium: set.has("hypertension") ? 1500 : GGL_BUDGET.sodium,
     fat: GGL_BUDGET.fat,
   };
@@ -232,5 +232,5 @@ function band(
   nutrient: Nutrient, foodForm: FoodForm, bandKey: "low" | "medium" | "high",
   zone: NutritionZone, per100Min: number | null, per100Max: number | null,
 ): NutritionBand {
-  return { nutrient, foodForm, bandKey, zone, per100Min, per100Max, conditionTag: null, guidelineRef: "BPOM Nutri-Level (kerangka)" };
+  return { nutrient, foodForm, bandKey, zone, per100Min, per100Max, conditionTag: null, guidelineRef: "BPOM Nutri-Level (ditinjau ahli gizi)" };
 }

@@ -8,7 +8,7 @@ import { flushOutbox, getActiveProfileId } from "./sync";
  * (kunci profileId, pola fasting_settings). Sumber daftar alergen yang dipantau
  * untuk deteksi pada `ingredients_raw` hasil pindai. App MENANDAI kemungkinan,
  * tidak menjamin "bebas alergen" (bahasa disepakati saat review §11).
- * ⚠️ Di balik flag NEXT_PUBLIC_FEATURE_NUTRITION; daftar sinonim menunggu review.
+ * Di balik flag NEXT_PUBLIC_FEATURE_NUTRITION; daftar sinonim ditinjau ahli gizi/alergi.
  */
 
 export { ALLERGEN_DEFS };
