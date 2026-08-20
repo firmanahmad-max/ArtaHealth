@@ -19,3 +19,4 @@ export * from "./nutrition-extract.ts";
 export * from "./allergen.ts";
 export * from "./food-db.ts";
 export * from "./food-estimate.ts";
+export * from "./food-extract.ts";
