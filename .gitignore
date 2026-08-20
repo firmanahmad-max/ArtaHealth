@@ -14,3 +14,6 @@ playwright-report/
 **/public/sw*.js
 **/public/swe-worker*.js
 storybook-static/
+
+# Output regresi nutrition-scan (artefak lokal)
+regresi-hasil.csv
