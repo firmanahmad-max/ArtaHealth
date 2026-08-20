@@ -17,3 +17,5 @@ export * from "./medication.ts";
 export * from "./nutrition.ts";
 export * from "./nutrition-extract.ts";
 export * from "./allergen.ts";
+export * from "./food-db.ts";
+export * from "./food-estimate.ts";
