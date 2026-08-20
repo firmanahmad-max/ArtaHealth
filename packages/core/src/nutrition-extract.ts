@@ -89,8 +89,9 @@ export type ExtractedLabel = z.infer<typeof extractedLabelSchema>;
 export interface SanityResult {
   /** masalah konsistensi/satuan yang perlu ditinjau user */
   issues: { field: string; message: string }[];
-  /** field yang perlu dikonfirmasi (masalah sanity atau confidence rendah) */
+  /** field untuk ditandai "periksa" di UI (isu sanity atau confidence rendah) — hint per-field */
   recheck: string[];
+  /** true HANYA bila ada isu sanity (angka tak konsisten). Confidence rendah tak memicu. */
   needsConfirmation: boolean;
 }
 
@@ -109,8 +110,10 @@ export function sanityCheck(label: ExtractedLabel): SanityResult {
   const recheck = new Set<string>();
   const p = label.per_serving;
 
-  // 1) satuan natrium — nilai kecil menandai kemungkinan g terbaca sebagai mg
-  if (p.sodium_mg !== undefined && p.sodium_mg > 0 && p.sodium_mg <= 20) {
+  // 1) satuan natrium — nilai SANGAT kecil menandai kemungkinan g terbaca sebagai mg
+  //    (mis. "0,2 g" tercatat 0.2). Ambang <5: natrium mg nyata (minuman rendah natrium)
+  //    umumnya >=5, jadi jangan tandai 5-20 mg yang sah.
+  if (p.sodium_mg !== undefined && p.sodium_mg > 0 && p.sodium_mg < 5) {
     issues.push({ field: "sodium_mg", message: "Pastikan satuan natrium dalam mg (bukan g)." });
     recheck.add("sodium_mg");
   }
@@ -152,7 +155,10 @@ export function sanityCheck(label: ExtractedLabel): SanityResult {
     if (typeof c === "number" && c < CONFIDENCE_THRESHOLD) recheck.add(field);
   }
 
-  return { issues, recheck: [...recheck], needsConfirmation: issues.length > 0 || recheck.size > 0 };
+  // needsConfirmation HANYA dari isu sanity deterministik (inkonsistensi angka).
+  // Confidence rendah tetap mengisi `recheck` (penanda "periksa" halus per-field di UI)
+  // tapi TIDAK memaksa banner konfirmasi — menekan noise (jitter confidence model tak andal).
+  return { issues, recheck: [...recheck], needsConfirmation: issues.length > 0 };
 }
 
 /** Peta hasil ekstraksi → input rule engine verdict (satuan sudah per takaran saji). */
