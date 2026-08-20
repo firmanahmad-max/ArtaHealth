@@ -110,8 +110,10 @@ export function sanityCheck(label: ExtractedLabel): SanityResult {
   const recheck = new Set<string>();
   const p = label.per_serving;
 
-  // 1) satuan natrium — nilai kecil menandai kemungkinan g terbaca sebagai mg
-  if (p.sodium_mg !== undefined && p.sodium_mg > 0 && p.sodium_mg <= 20) {
+  // 1) satuan natrium — nilai SANGAT kecil menandai kemungkinan g terbaca sebagai mg
+  //    (mis. "0,2 g" tercatat 0.2). Ambang <5: natrium mg nyata (minuman rendah natrium)
+  //    umumnya >=5, jadi jangan tandai 5-20 mg yang sah.
+  if (p.sodium_mg !== undefined && p.sodium_mg > 0 && p.sodium_mg < 5) {
     issues.push({ field: "sodium_mg", message: "Pastikan satuan natrium dalam mg (bukan g)." });
     recheck.add("sodium_mg");
   }
