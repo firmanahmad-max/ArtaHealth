@@ -25,6 +25,42 @@ describe("skema ekstraksi label", () => {
     expect(r.success).toBe(true);
     if (r.success) expect(r.data.ingredients_raw).toBeUndefined();
   });
+
+  it("normalisasi bentuk berantakan Gemini: nilai dibungkus {value,confidence} + string", () => {
+    // pola nyata dari regresi: field jadi objek, angka jadi string
+    const messy = {
+      serving_size: { value: "250", unit: "ml", confidence: 0.95 },
+      servings_per_pack: { value: "10", confidence: 0.95 },
+      per_serving: {
+        energy_kcal: { value: 3500, confidence: 0.95 },
+        fat_g: { value: "45", confidence: 0.9 },
+        sugar_g: { value: 12, confidence: 0.95 },
+      },
+      confidence: { per_serving: { energy_kcal: { value: 0.9 } } }, // bersarang → tak crash
+    };
+    const r = extractedLabelSchema.safeParse(messy);
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.serving_size.value).toBe(250);
+      expect(r.data.servings_per_pack).toBe(10);
+      expect(r.data.per_serving.energy_kcal).toBe(3500);
+      expect(r.data.per_serving.fat_g).toBe(45);
+    }
+  });
+
+  it("servings_per_pack hilang/null → default 1; net_content kosong → diabaikan", () => {
+    const r = extractedLabelSchema.safeParse({
+      serving_size: { value: 237, unit: "ml" },
+      servings_per_pack: null,
+      net_content: { value: null, unit: null, confidence: 0 },
+      per_serving: { energy_kcal: 240, sugar_g: 12, sodium_mg: 90 },
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.servings_per_pack).toBe(1);
+      expect(r.data.net_content).toBeUndefined();
+    }
+  });
 });
 
 describe("validator sanity §3", () => {

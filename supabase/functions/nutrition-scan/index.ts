@@ -46,9 +46,13 @@ function providerConfig(): { baseUrl: string; apiKey: string; model: string } {
 const SYSTEM = [
   "Anda pembaca label Informasi Nilai Gizi (ING) kemasan pangan Indonesia.",
   "Baca ANGKA persis seperti tertera — jangan menghitung, menormalkan, atau menebak.",
-  "Kembalikan HANYA JSON sesuai skema: serving_size {value,unit(g|ml)}, servings_per_pack,",
-  "net_content, per_serving {energy_kcal,fat_g,sat_fat_g,trans_fat_g,protein_g,carb_g,sugar_g,fiber_g,sodium_mg},",
-  "akg_basis_kcal, ingredients_raw, dan confidence 0..1 per field.",
+  "Kembalikan HANYA JSON. SETIAP nilai gizi adalah ANGKA BIASA (number), BUKAN objek —",
+  "JANGAN membungkus dengan {value, confidence}. Angka tanpa tanda kutip (bukan string).",
+  "Bentuk: serving_size {value:number, unit:'g'|'ml'}, servings_per_pack:number (jumlah sajian per kemasan;",
+  "jika hanya 1 sajian tulis 1; WAJIB diisi), net_content {value:number, unit:'g'|'ml'} (boleh dihilangkan bila tak ada),",
+  "per_serving {energy_kcal,fat_g,sat_fat_g,trans_fat_g,protein_g,carb_g,sugar_g,fiber_g,sodium_mg} semua number,",
+  "akg_basis_kcal:number, ingredients_raw:string.",
+  "Confidence HANYA di satu objek terpisah 'confidence' {nama_field: angka 0..1}, jangan di dalam field nilai.",
   "Natrium SELALU dalam mg. Bila suatu nilai tidak terbaca jelas, beri confidence rendah (<0.7), jangan mengarang.",
 ].join(" ");
 
