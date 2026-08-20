@@ -55,31 +55,44 @@ const SYSTEM = [
 async function callVision(imageUrl: string): Promise<{ content: string }> {
   const cfg = providerConfig();
   if (!cfg.baseUrl || !cfg.apiKey) throw new Error("provider belum dikonfigurasi");
+  // Reasoning model (GPT-5 / o-series): TOLAK temperature≠1 & max_tokens → wajib
+  // max_completion_tokens; reasoning_effort minimal agar cepat + sisakan token utk JSON.
+  const isReasoning = /^(gpt-5|o[0-9])/i.test(cfg.model);
+  const payload: Record<string, unknown> = {
+    model: cfg.model,
+    messages: [
+      { role: "system", content: SYSTEM },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "Ekstrak tabel Informasi Nilai Gizi & daftar bahan dari foto ini menjadi JSON." },
+          { type: "image_url", image_url: { url: imageUrl } },
+        ],
+      },
+    ],
+    response_format: { type: "json_object" },
+  };
+  if (isReasoning) {
+    payload.max_completion_tokens = 2000;
+    payload.reasoning_effort = "minimal";
+  } else {
+    payload.temperature = 0;
+    payload.max_tokens = 900;
+  }
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30_000);
+  const timeout = setTimeout(() => controller.abort(), 45_000);
   try {
     const res = await fetch(`${cfg.baseUrl.replace(/\/$/, "")}/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${cfg.apiKey}` },
-      body: JSON.stringify({
-        model: cfg.model,
-        messages: [
-          { role: "system", content: SYSTEM },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: "Ekstrak tabel Informasi Nilai Gizi & daftar bahan dari foto ini menjadi JSON." },
-              { type: "image_url", image_url: { url: imageUrl } },
-            ],
-          },
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0,
-        max_tokens: 900,
-      }),
+      body: JSON.stringify(payload),
       signal: controller.signal,
     });
-    if (!res.ok) throw new Error(`provider ${res.status}`);
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      console.error("nutrition-scan vision provider error", res.status, errText.slice(0, 500));
+      throw new Error(`provider ${res.status}`);
+    }
     const body = await res.json();
     return { content: body?.choices?.[0]?.message?.content ?? "" };
   } finally {
@@ -113,16 +126,25 @@ Deno.serve(async (req) => {
 
     // 1) vision → 2) parse → 3) Zod (retry 1×) → 4) sanity
     let extracted: unknown = null;
+    let lastContent = "";
+    let lastIssue = "";
     for (let attempt = 0; attempt < 2 && extracted === null; attempt++) {
       try {
         const { content } = await callVision(imageUrl);
+        lastContent = content;
         const parsed = extractedLabelSchema.safeParse(parseJsonLoose(content));
         if (parsed.success) extracted = parsed.data;
-      } catch { /* retry lalu menyerah */ }
+        else lastIssue = JSON.stringify(parsed.error.issues).slice(0, 400);
+      } catch (e) { lastIssue = "callVision/parse: " + ((e as Error)?.message ?? String(e)); }
     }
     if (extracted === null) {
+      // diagnosa hanya ke log fungsi (dashboard), tidak ke body respons
+      console.error("nutrition-scan extract gagal", { model: providerConfig().model, lastIssue, preview: lastContent.slice(0, 600) });
       // foto bukan label / tak terbaca → pesan ramah (bukan error teknis)
-      return json({ error: "not_a_label", message: "Kami tidak menemukan tabel Informasi Nilai Gizi. Coba foto bagian belakang kemasan." }, 422);
+      return json({
+        error: "not_a_label",
+        message: "Kami tidak menemukan tabel Informasi Nilai Gizi. Coba foto bagian belakang kemasan.",
+      }, 422);
     }
 
     const sanity = sanityCheck(extracted as Parameters<typeof sanityCheck>[0]);

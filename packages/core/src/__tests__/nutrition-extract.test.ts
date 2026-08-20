@@ -16,6 +16,15 @@ describe("skema ekstraksi label", () => {
     expect(extractedLabelSchema.safeParse({ ...base, serving_size: { value: 0, unit: "ml" } }).success).toBe(false);
     expect(extractedLabelSchema.safeParse({ ...base, serving_size: { value: 250, unit: "oz" } }).success).toBe(false);
   });
+  it("toleran null pada field opsional (model vision kerap kirim null eksplisit)", () => {
+    // GPT-5 mengisi field kosong dengan null → harus lolos (null dibuang→undefined)
+    const r = extractedLabelSchema.safeParse({
+      ...base, ingredients_raw: null, product_guess: null, net_content: null,
+      akg_basis_kcal: null, per_serving: { ...base.per_serving, fiber_g: null },
+    });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.ingredients_raw).toBeUndefined();
+  });
 });
 
 describe("validator sanity §3", () => {
