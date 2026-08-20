@@ -87,9 +87,10 @@ describe("validator sanity §3", () => {
     expect(r.recheck).not.toContain("energy_kcal");
   });
 
-  it("gula > karbohidrat → tandai", () => {
+  it("gula > karbohidrat → tandai + WAJIB konfirmasi (isu sanity)", () => {
     const r = sanityCheck({ ...base, per_serving: { ...base.per_serving, sugar_g: 30, carb_g: 22 } });
     expect(r.issues.some((i) => i.field === "sugar_g")).toBe(true);
+    expect(r.needsConfirmation).toBe(true);
   });
 
   it("lemak jenuh > lemak total → tandai", () => {
@@ -102,11 +103,11 @@ describe("validator sanity §3", () => {
     expect(r.issues.some((i) => i.field === "servings_per_pack")).toBe(true);
   });
 
-  it("confidence rendah < 0.7 → field masuk recheck", () => {
+  it("confidence rendah < 0.7 → masuk recheck TAPI tak memaksa konfirmasi (kurangi noise)", () => {
     const r = sanityCheck({ ...base, confidence: { sugar_g: 0.5, sodium_mg: 0.9 } });
-    expect(r.recheck).toContain("sugar_g");
-    expect(r.recheck).not.toContain("sodium_mg");
-    expect(r.needsConfirmation).toBe(true);
+    expect(r.recheck).toContain("sugar_g");       // penanda field halus
+    expect(r.recheck).not.toContain("sodium_mg"); // >0.7 tak ditandai
+    expect(r.needsConfirmation).toBe(false);      // tanpa isu sanity → banner tak muncul
   });
 });
 
