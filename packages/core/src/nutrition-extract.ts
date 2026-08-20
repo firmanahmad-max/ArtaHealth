@@ -8,7 +8,23 @@ import type { NutritionInput, FoodForm } from "./nutrition.ts";
  * pernah tampil dari data yang diragukan.
  */
 
-const amount = z.number().nonnegative().optional();
+/**
+ * Ambil ANGKA dari keluaran vision yang berantakan (deterministik). Model nyata
+ * (mis. Gemini) tidak konsisten: kadang skalar, kadang membungkus `{value,confidence}`,
+ * kadang angka sebagai string ("250"). Normalisasi ke number|undefined.
+ */
+function looseNumber(v: unknown): number | undefined {
+  if (v && typeof v === "object" && !Array.isArray(v) && "value" in (v as Record<string, unknown>)) {
+    v = (v as Record<string, unknown>).value;
+  }
+  if (typeof v === "number") return Number.isFinite(v) ? v : undefined;
+  if (typeof v === "string") {
+    const n = parseFloat(v.replace(/[^\d.,-]/g, "").replace(",", "."));
+    return Number.isFinite(n) ? n : undefined;
+  }
+  return undefined;
+}
+const amount = z.preprocess(looseNumber, z.number().nonnegative().optional());
 
 export const perServingSchema = z.object({
   energy_kcal: amount,
@@ -22,21 +38,37 @@ export const perServingSchema = z.object({
   sodium_mg: amount,
 });
 
+/** {value,unit} — value ditoleransi string; key ekstra (confidence) diabaikan. */
+const measure = z.object({
+  value: z.preprocess(looseNumber, z.number().positive()),
+  unit: z.enum(["g", "ml"]),
+});
+/** net_content: bila value/unit kosong → anggap tidak ada (bukan error). */
+const netContent = z.preprocess((v) => {
+  if (v && typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    if (o.value == null || o.unit == null) return undefined;
+  }
+  return v;
+}, measure.optional());
+
 const extractedLabelObject = z.object({
   product_guess: z.string().optional(),
-  serving_size: z.object({ value: z.number().positive(), unit: z.enum(["g", "ml"]) }),
-  servings_per_pack: z.number().positive(),
-  net_content: z.object({ value: z.number().positive(), unit: z.enum(["g", "ml"]) }).optional(),
+  serving_size: measure,
+  // sering hilang/null/dibungkus → default 1 sajian (app tetap bisa dikoreksi user)
+  servings_per_pack: z.preprocess(looseNumber, z.number().positive().default(1)),
+  net_content: netContent,
   per_serving: perServingSchema,
-  akg_basis_kcal: z.number().positive().optional(),
+  akg_basis_kcal: z.preprocess(looseNumber, z.number().positive().optional()),
   ingredients_raw: z.string().optional(),
-  confidence: z.record(z.string(), z.number().min(0).max(1)).optional(),
+  // permisif: model kadang bersarang ({per_serving:{…}}) atau angka; sanity menoleransi non-number
+  confidence: z.record(z.string(), z.unknown()).optional(),
 });
 
 /**
  * Buang key bernilai `null` (jadikan undefined) sebelum validasi. Model vision
- * (mis. GPT-5) kerap mengisi field kosong dengan `null` eksplisit — tanpa ini,
- * `ingredients_raw: null` dll. gagal `.optional()` ("expected string, received null").
+ * kerap mengisi field kosong dengan `null` eksplisit — tanpa ini, `ingredients_raw: null`
+ * dll. gagal `.optional()` ("expected string, received null").
  */
 function stripNulls(v: unknown): unknown {
   if (Array.isArray(v)) return v.map(stripNulls);
@@ -115,9 +147,9 @@ export function sanityCheck(label: ExtractedLabel): SanityResult {
     }
   }
 
-  // 6) confidence rendah pada field kunci
+  // 6) confidence rendah pada field kunci (toleran bentuk: kadang number, kadang bersarang)
   for (const [field, c] of Object.entries(label.confidence ?? {})) {
-    if (c < CONFIDENCE_THRESHOLD) recheck.add(field);
+    if (typeof c === "number" && c < CONFIDENCE_THRESHOLD) recheck.add(field);
   }
 
   return { issues, recheck: [...recheck], needsConfirmation: issues.length > 0 || recheck.size > 0 };
