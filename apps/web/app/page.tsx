@@ -24,7 +24,8 @@ import { MedicationCard } from "@/components/MedicationCard";
 import { NutritionScanCard } from "@/components/NutritionScanCard";
 import { AllergyCard } from "@/components/AllergyCard";
 import { EaterCard } from "@/components/EaterCard";
-import { featureBiomarker, featureRamadan, featureMedication, featureNutrition } from "@/lib/features";
+import { FoodDiaryCard } from "@/components/FoodDiaryCard";
+import { featureBiomarker, featureRamadan, featureMedication, featureNutrition, featureFoodDiary } from "@/lib/features";
 import { isScheduledOn, isoWeekdayOf } from "@arta/core";
 import { todayKey } from "@/lib/habits";
 import { isFastingToday } from "@/lib/fasting";
@@ -251,6 +252,8 @@ export default function Dashboard() {
         {featureNutrition() && <EaterCard />}
 
         {featureNutrition() && <NutritionScanCard />}
+
+        {featureFoodDiary() && <FoodDiaryCard />}
 
         <HabitCard />
 

@@ -40,3 +40,11 @@ export const featureMedication = (): boolean =>
  */
 export const featureNutrition = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_NUTRITION === "1";
+
+/**
+ * Food Diary AI + Perencana Menu (Fase 6). Default OFF. FOOD_DB = kerangka, wajib
+ * verifikasi ahli gizi vs TKPI Kemenkes sebelum nyala; estimasi foto masakan < akurasi
+ * label (framing "perkiraan"). Dev: set NEXT_PUBLIC_FEATURE_FOOD_DIARY=1 di .env.local.
+ */
+export const featureFoodDiary = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_FOOD_DIARY === "1";
