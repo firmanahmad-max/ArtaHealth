@@ -89,8 +89,9 @@ export type ExtractedLabel = z.infer<typeof extractedLabelSchema>;
 export interface SanityResult {
   /** masalah konsistensi/satuan yang perlu ditinjau user */
   issues: { field: string; message: string }[];
-  /** field yang perlu dikonfirmasi (masalah sanity atau confidence rendah) */
+  /** field untuk ditandai "periksa" di UI (isu sanity atau confidence rendah) — hint per-field */
   recheck: string[];
+  /** true HANYA bila ada isu sanity (angka tak konsisten). Confidence rendah tak memicu. */
   needsConfirmation: boolean;
 }
 
@@ -152,7 +153,10 @@ export function sanityCheck(label: ExtractedLabel): SanityResult {
     if (typeof c === "number" && c < CONFIDENCE_THRESHOLD) recheck.add(field);
   }
 
-  return { issues, recheck: [...recheck], needsConfirmation: issues.length > 0 || recheck.size > 0 };
+  // needsConfirmation HANYA dari isu sanity deterministik (inkonsistensi angka).
+  // Confidence rendah tetap mengisi `recheck` (penanda "periksa" halus per-field di UI)
+  // tapi TIDAK memaksa banner konfirmasi — menekan noise (jitter confidence model tak andal).
+  return { issues, recheck: [...recheck], needsConfirmation: issues.length > 0 };
 }
 
 /** Peta hasil ekstraksi → input rule engine verdict (satuan sudah per takaran saji). */
