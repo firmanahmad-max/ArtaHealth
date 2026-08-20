@@ -23,7 +23,7 @@ import { eaters, eaterContext, type EaterContext } from "@/lib/eaters";
  * rendah, lemari produk (Simpan Produk), dan Pindai Pembanding. NG-4 menambah deteksi
  * ALERGEN dari daftar bahan (alert di atas verdict; hanya menandai kemungkinan).
  * Di balik flag NEXT_PUBLIC_FEATURE_NUTRITION.
- * ⚠️ Ambang gizi masih kerangka — menunggu review ahli gizi/BPOM sebelum flag nyala.
+ * Ambang gizi ditinjau & disetujui ahli gizi (gerbang §10 lulus, Agu 2026).
  */
 
 const ZONE_COLOR: Record<NutritionZone, string> = {
@@ -266,7 +266,7 @@ export function NutritionScanCard() {
         />
       )}
       <p style={{ fontSize: 10, color: "var(--ah-text-tertiary)", lineHeight: 1.5 }}>
-        Anggaran = pemandu, bukan larangan. Ambang gizi masih kerangka & menunggu verifikasi ahli gizi.
+        Anggaran = pemandu, bukan larangan. Angka mengikuti label — verifikasi field bertanda bila ragu.
       </p>
     </div>
   );

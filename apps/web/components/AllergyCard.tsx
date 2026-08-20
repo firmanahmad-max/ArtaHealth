@@ -11,7 +11,7 @@ import {
  * Kartu Alergi (Fase 4 · NG-4). Pengguna memilih alergen yang dipantau (Big-9 +
  * kustom) → jadi basis deteksi pada daftar bahan hasil pindai. Menyimpan catatan
  * darurat opsional. Bahasa menegaskan app MENANDAI kemungkinan, bukan menjamin aman.
- * ⚠️ Daftar & teks menunggu review ahli gizi/alergi; di balik flag.
+ * Daftar sinonim & teks ditinjau ahli gizi/alergi (gerbang §10 lulus, Agu 2026).
  */
 export function AllergyCard() {
   const { show } = useToast();
