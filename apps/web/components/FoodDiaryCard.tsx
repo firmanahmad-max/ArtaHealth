@@ -14,7 +14,7 @@ import { logFood, todayGGLUsage } from "@/lib/nutrition";
  * hidangan manual → daftar hidangan yang bisa DIKOREKSI porsinya → gizi total
  * DETERMINISTIK (FOOD_DB/TKPI) → catat ke food_logs (GGL Budget ter-update).
  * Framing "perkiraan": estimasi foto masakan < akurasi label. Di balik flag
- * NEXT_PUBLIC_FEATURE_FOOD_DIARY. FOOD_DB kerangka — menunggu verifikasi ahli gizi.
+ * NEXT_PUBLIC_FEATURE_FOOD_DIARY. FOOD_DB ditinjau ahli gizi vs TKPI (gerbang lulus, Agu 2026).
  */
 
 type MealItem = { key: string; name: string; food: FoodItem; portionG: number };

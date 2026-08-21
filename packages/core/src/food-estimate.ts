@@ -4,7 +4,7 @@
  * Tidak ada tebakan angka oleh AI. Juga Perencana Menu: saran hidangan yang muat
  * di sisa anggaran GGL harian (memakai GGL_BUDGET Sadar Gizi).
  *
- * ⚠️ Nilai FOOD_DB kerangka (lihat food-db.ts) — estimasi, bukan pengukuran. UI wajib
+ * Nilai FOOD_DB ditinjau ahli gizi vs TKPI (lihat food-db.ts) — tetap estimasi (porsi foto). UI wajib
  *    "perkiraan" + izinkan koreksi porsi/hidangan sebelum masuk food_logs.
  */
 

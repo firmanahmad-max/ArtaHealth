@@ -12,7 +12,7 @@ import { nutritionConditions, todayGGLUsage, logFood } from "@/lib/nutrition";
  * Perencana Menu (Fase 6 · FD-4). Dari SISA anggaran GGL hari ini (todayGGLUsage vs
  * dailyBudget) → `suggestMeals` deterministik: hidangan yang MUAT di sisa anggaran,
  * personalisasi hipertensi (utamakan natrium rendah). Quick-log ke food_logs.
- * Di balik flag NEXT_PUBLIC_FEATURE_FOOD_DIARY. FOOD_DB kerangka — menunggu review TKPI.
+ * Di balik flag NEXT_PUBLIC_FEATURE_FOOD_DIARY. FOOD_DB ditinjau ahli gizi vs TKPI.
  */
 
 const CATS: [FoodItem["category"] | "all", string][] = [
