@@ -6,6 +6,12 @@ import {
   familyMembers, ensureSelf, addMember, removeMember, ageFromDob, RELATION_LABEL, type Relation,
 } from "@/lib/family";
 import { MemberHealthCard } from "./MemberHealthCard";
+import { familyOverview, type MemberHealthStatus } from "@/lib/family-health";
+import type { Zone } from "@arta/core";
+
+const ZONE_COLOR: Record<Zone, string> = {
+  green: "var(--ah-score-excellent)", yellow: "var(--ah-score-fair)", orange: "#FB923C", red: "var(--ah-score-low)",
+};
 
 /**
  * Family Health / Caregiver (Fase 6 · FM-1). Roster anggota keluarga (kelola anggota).
@@ -23,6 +29,9 @@ export function FamilyCard() {
   const { show } = useToast();
   useEffect(() => { void ensureSelf(); }, []);   // seed "Saya" (write) di luar liveQuery
   const members = useLiveQuery(() => familyMembers(), []) ?? [];
+  const memberKey = members.map((m) => m.id).join(",");
+  const overview = useLiveQuery(() => familyOverview(members.map((m) => m.id)), [memberKey]) ?? {};
+  const needAttention = Object.entries(overview).filter(([, s]) => s.redFlag || s.zone === "orange" || s.zone === "red");
   const [adding, setAdding] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -49,6 +58,15 @@ export function FamilyCard() {
         <button onClick={() => setAdding((v) => !v)} style={ghostBtn}>{adding ? "Tutup" : "+ Anggota"}</button>
       </div>
 
+      {needAttention.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(248,113,113,0.14)", border: "1.5px solid var(--ah-score-low)", borderRadius: "var(--ah-r-inner)", padding: "10px 12px" }}>
+          <span style={{ fontSize: 18 }}>⚠️</span>
+          <p style={{ fontSize: 12, fontWeight: 700, color: "var(--ah-text-primary)", lineHeight: 1.4 }}>
+            {needAttention.length} anggota perlu perhatian — {needAttention.map(([id]) => members.find((m) => m.id === id)?.displayName).filter(Boolean).join(", ")}.
+          </p>
+        </div>
+      )}
+
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {members.map((m) => {
           const age = ageFromDob(m.dob);
@@ -57,11 +75,14 @@ export function FamilyCard() {
               <div style={row}>
                 <span style={{ fontSize: 20 }}>{RELATION_ICON[m.relation]}</span>
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: "var(--ah-text-primary)" }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: "var(--ah-text-primary)", display: "flex", alignItems: "center", gap: 6 }}>
+                    {overview[m.id]?.zone && <span style={{ width: 9, height: 9, borderRadius: "50%", background: ZONE_COLOR[overview[m.id]!.zone!], flexShrink: 0 }} />}
                     {m.displayName} {m.isSelf && <span style={{ fontSize: 10, fontWeight: 700, color: "var(--ah-cyan, #22D3EE)" }}>SAYA</span>}
                   </p>
                   <p style={{ fontSize: 11, color: "var(--ah-text-tertiary)" }}>
-                    {RELATION_LABEL[m.relation]}{age !== null ? ` · ${age} th` : ""}{m.sex ? ` · ${m.sex === "male" ? "Pria" : "Wanita"}` : ""}
+                    {(overview[m.id]?.concerns.length ?? 0) > 0
+                      ? overview[m.id]!.concerns.map((c) => c.label).join(", ")
+                      : `${RELATION_LABEL[m.relation]}${age !== null ? ` · ${age} th` : ""}${m.sex ? ` · ${m.sex === "male" ? "Pria" : "Wanita"}` : ""}`}
                   </p>
                 </div>
                 {!m.isSelf && (

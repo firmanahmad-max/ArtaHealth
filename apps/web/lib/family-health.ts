@@ -1,7 +1,7 @@
 "use client";
 import {
   classifyBiomarker, DEFAULT_BIOMARKER_BANDS,
-  type BiomarkerInput, type BiomarkerClassification, type Biomarker,
+  type BiomarkerInput, type BiomarkerClassification, type Biomarker, type Zone,
 } from "@arta/core";
 import { db, type LocalBiomarkerReading } from "./db";
 
@@ -58,4 +58,39 @@ export async function memberLatest(memberId: string): Promise<Partial<Record<Bio
 /** Hapus pembacaan anggota (tombstone, lokal). */
 export async function removeMemberReading(clientId: string): Promise<void> {
   await db.biomarker_readings.update(clientId, { deletedAt: new Date().toISOString() });
+}
+
+// ===== FM-3: status & alert caregiver =====
+
+const ZONE_RANK: Record<Zone, number> = { green: 0, yellow: 1, orange: 2, red: 3 };
+
+export interface MemberHealthStatus {
+  /** zona terburuk dari pembacaan terbaru tiap biomarker (null bila belum ada data) */
+  zone: Zone | null;
+  redFlag: boolean;
+  /** biomarker zona oranye/merah yang perlu perhatian */
+  concerns: { biomarker: Biomarker; label: string; zone: Zone }[];
+}
+
+/** Status kesehatan ringkas satu anggota dari pembacaan terbaru per biomarker. */
+export async function memberStatus(memberId: string): Promise<MemberHealthStatus> {
+  const latest = await memberLatest(memberId);
+  let zone: Zone | null = null;
+  let redFlag = false;
+  const concerns: MemberHealthStatus["concerns"] = [];
+  for (const r of Object.values(latest)) {
+    const c = r?.classification as BiomarkerClassification | null;
+    if (!c) continue;
+    if (c.redFlag) redFlag = true;
+    if (zone === null || ZONE_RANK[c.zone] > ZONE_RANK[zone]) zone = c.zone;
+    if (c.zone === "orange" || c.zone === "red") concerns.push({ biomarker: r!.biomarker, label: c.band.label, zone: c.zone });
+  }
+  return { zone, redFlag, concerns };
+}
+
+/** Status seluruh anggota (untuk rollup keluarga). */
+export async function familyOverview(memberIds: string[]): Promise<Record<string, MemberHealthStatus>> {
+  const out: Record<string, MemberHealthStatus> = {};
+  for (const id of memberIds) out[id] = await memberStatus(id);
+  return out;
 }

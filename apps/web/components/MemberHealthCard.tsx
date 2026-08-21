@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useToast } from "@arta/design-system";
-import type { BiomarkerInput, BiomarkerClassification, Zone } from "@arta/core";
+import { redFlagGuidance, type BiomarkerInput, type BiomarkerClassification, type Zone } from "@arta/core";
 import type { LocalBiomarkerReading } from "@/lib/db";
 import { logMemberBiomarker, memberReadings, removeMemberReading } from "@/lib/family-health";
 
@@ -27,6 +27,10 @@ export function MemberHealthCard({ memberId, name, sex }: { memberId: string; na
 
   const latest: Partial<Record<string, LocalBiomarkerReading>> = {};
   for (const r of readings) if (!latest[r.biomarker]) latest[r.biomarker] = r;
+  // alert caregiver: red-flag (kegawatan) atau zona merah pada pembacaan terbaru
+  const flagged = Object.values(latest).map((r) => cls(r!)).filter((c): c is BiomarkerClassification => !!c);
+  const redFlag = flagged.find((c) => c.redFlag);
+  const redConcerns = flagged.filter((c) => !c.redFlag && c.zone === "red");
 
   const save = async () => {
     const inputs: BiomarkerInput[] = [];
@@ -42,6 +46,17 @@ export function MemberHealthCard({ memberId, name, sex }: { memberId: string; na
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, background: "var(--ah-surface-2)", borderRadius: "var(--ah-r-inner)", padding: 12 }}>
+      {(redFlag || redConcerns.length > 0) && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, background: "rgba(248,113,113,0.14)", border: "1.5px solid var(--ah-score-low)", borderRadius: "var(--ah-r-inner)", padding: "10px 12px" }}>
+          <p style={{ fontSize: 12, fontWeight: 800, color: "var(--ah-text-primary)" }}>
+            {redFlag ? `⚠️ ${redFlagGuidance(redFlag.redFlagReason!).title}` : `⚠️ ${name} perlu perhatian`}
+          </p>
+          <p style={{ fontSize: 11, color: "var(--ah-text-secondary)", lineHeight: 1.5 }}>
+            {redFlag ? redFlagGuidance(redFlag.redFlagReason!).action
+              : `${redConcerns.map((c) => c.band.label).join(", ")} — jadwalkan pemeriksaan ke dokter untuk konfirmasi.`}
+          </p>
+        </div>
+      )}
       {/* ringkasan terbaru */}
       {Object.keys(latest).length > 0 && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
