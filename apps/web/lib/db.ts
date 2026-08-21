@@ -69,6 +69,22 @@ export interface LocalBiomarkerReading {
   /** BiomarkerClassification dari @arta/core (di-cache utk tampil cepat/offline) */
   classification: unknown | null;
   measuredAt: string; note?: string;
+  /** asal pembacaan (Fase 6 MV): manual|vault_ocr. Undefined = manual (baris lama). */
+  source?: string;
+  /** tautan ke dokumen Vault bila dari OCR */
+  vaultDocId?: string | null;
+  deletedAt: string | null;
+}
+
+/** Dokumen medis Vault (Fase 6 · MV-3). extracted = nilai OCR. Idempoten via id. */
+export interface LocalMedicalDocument {
+  id: string;
+  profileId: string;
+  kind: string;                 // lab|resep|radiologi|lainnya
+  docDate?: string | null;      // "YYYY-MM-DD"
+  extracted: unknown;
+  photoPath?: string | null;
+  scannedAt: string;
   deletedAt: string | null;
 }
 
@@ -207,7 +223,7 @@ export interface LocalNutritionEater {
 }
 
 export type LogTableName = "hydration_logs" | "sleep_logs" | "activity_logs" | "mood_logs" | "weight_logs";
-export type SyncTableName = LogTableName | "habits" | "habit_completions" | "biomarker_readings" | "monitored_conditions" | "fasting_settings" | "fasting_days" | "medications" | "medication_intakes" | "product_scans" | "food_logs" | "saved_products" | "allergy_cards" | "nutrition_eaters";
+export type SyncTableName = LogTableName | "habits" | "habit_completions" | "biomarker_readings" | "monitored_conditions" | "fasting_settings" | "fasting_days" | "medications" | "medication_intakes" | "product_scans" | "food_logs" | "saved_products" | "allergy_cards" | "nutrition_eaters" | "medical_documents";
 
 export interface OutboxEntry {
   id?: number;
@@ -238,6 +254,7 @@ type ArtaDB = Dexie & {
   saved_products: EntityTable<LocalSavedProduct, "id">;
   allergy_cards: EntityTable<LocalAllergyCard, "profileId">;
   nutrition_eaters: EntityTable<LocalNutritionEater, "id">;
+  medical_documents: EntityTable<LocalMedicalDocument, "id">;
   outbox: EntityTable<OutboxEntry, "id">;
   meta: EntityTable<MetaEntry, "key">;
 };
@@ -292,6 +309,10 @@ db.version(9).stores({
 // v10 (Fase 4): anggota rumah yang dipindaikan — persona gizi ringan
 db.version(10).stores({
   nutrition_eaters: "id, updatedAt",
+});
+// v11 (Fase 6): Medical Vault — dokumen medis (nilai lab OCR)
+db.version(11).stores({
+  medical_documents: "id, scannedAt",
 });
 
 /** Awal hari lokal perangkat (ISO) — batas "hari ini" untuk skor & dashboard. */

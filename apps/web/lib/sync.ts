@@ -6,7 +6,7 @@ import {
   type LocalFastingSettings, type LocalFastingDay,
   type LocalMedication, type LocalMedicationIntake,
   type LocalProductScan, type LocalFoodLog, type LocalSavedProduct, type LocalAllergyCard,
-  type LocalNutritionEater,
+  type LocalNutritionEater, type LocalMedicalDocument,
 } from "./db";
 import { getSupabase, type PrimaryProfile } from "./supabase";
 
@@ -45,7 +45,8 @@ type AnyLocalRow =
   | LocalHydrationLog | LocalSleepLog | LocalActivityLog | LocalMoodLog | LocalWeightLog
   | LocalHabit | LocalHabitCompletion | LocalBiomarkerReading | LocalMonitoredCondition
   | LocalFastingSettings | LocalFastingDay | LocalMedication | LocalMedicationIntake
-  | LocalProductScan | LocalFoodLog | LocalSavedProduct | LocalAllergyCard | LocalNutritionEater;
+  | LocalProductScan | LocalFoodLog | LocalSavedProduct | LocalAllergyCard | LocalNutritionEater
+  | LocalMedicalDocument;
 
 /** habits & monitored_conditions ber-idempoten lewat PK id (uuid client), bukan client_id. */
 const CONFLICT_KEY: Record<SyncTableName, string> = {
@@ -67,6 +68,7 @@ const CONFLICT_KEY: Record<SyncTableName, string> = {
   saved_products: "id",
   allergy_cards: "profile_id",           // satu kartu per profil
   nutrition_eaters: "id",
+  medical_documents: "id",
 };
 
 function toServerRow(table: SyncTableName, row: AnyLocalRow): Record<string, unknown> {
@@ -90,6 +92,9 @@ function toServerRow(table: SyncTableName, row: AnyLocalRow): Record<string, unk
       profile_id: r.profileId, client_id: r.clientId, biomarker: r.biomarker,
       context: r.context, values: r.values, classification: r.classification ?? null,
       measured_at: r.measuredAt, note: r.note ?? null, deleted_at: r.deletedAt,
+      // hanya kirim bila di-set → sync biomarker manual lama tak terpengaruh (kolom baru MV)
+      ...(r.source ? { source: r.source } : {}),
+      ...(r.vaultDocId ? { vault_doc_id: r.vaultDocId } : {}),
     };
   }
   if (table === "monitored_conditions") {
@@ -167,6 +172,14 @@ function toServerRow(table: SyncTableName, row: AnyLocalRow): Record<string, unk
     return {
       id: r.id, profile_id: r.profileId, name: r.name, relation: r.relation ?? null,
       conditions: r.conditions, allergens: r.allergens, deleted_at: r.deletedAt,
+    };
+  }
+  if (table === "medical_documents") {
+    const r = row as LocalMedicalDocument;
+    return {
+      id: r.id, profile_id: r.profileId, kind: r.kind, doc_date: r.docDate ?? null,
+      extracted: r.extracted ?? null, photo_path: r.photoPath ?? null,
+      scanned_at: r.scannedAt, deleted_at: r.deletedAt,
     };
   }
   const base = { profile_id: (row as { profileId: string }).profileId, client_id: (row as { clientId: string }).clientId, deleted_at: (row as { deletedAt: string | null }).deletedAt };
@@ -250,6 +263,8 @@ function fromServerRow(table: SyncTableName, r: ServerRow): AnyLocalRow {
       values: (r.values as Record<string, number>) ?? {},
       classification: r.classification ?? null,
       measuredAt: r.measured_at, note: (r.note as string | null) ?? undefined,
+      source: (r.source as string | null) ?? undefined,
+      vaultDocId: (r.vault_doc_id as string | null) ?? null,
       deletedAt: (r.deleted_at as string | null) ?? null,
     } as LocalBiomarkerReading;
   }
@@ -340,6 +355,14 @@ function fromServerRow(table: SyncTableName, r: ServerRow): AnyLocalRow {
       updatedAt: r.updated_at, deletedAt: (r.deleted_at as string | null) ?? null,
     } as LocalNutritionEater;
   }
+  if (table === "medical_documents") {
+    return {
+      id: r.id, profileId: r.profile_id, kind: (r.kind as string) ?? "lab",
+      docDate: (r.doc_date as string | null) ?? null, extracted: r.extracted ?? null,
+      photoPath: (r.photo_path as string | null) ?? null,
+      scannedAt: r.scanned_at, deletedAt: (r.deleted_at as string | null) ?? null,
+    } as LocalMedicalDocument;
+  }
   const base = {
     clientId: r.client_id as string,
     profileId: r.profile_id as string,
@@ -370,6 +393,7 @@ const SYNC_TABLES: SyncTableName[] = [
   "medications", "medication_intakes", // medications sebelum intakes (FK medication_id)
   "product_scans", "food_logs", // scans sebelum food_logs (FK source_scan_id)
   "saved_products", "allergy_cards", "nutrition_eaters",
+  "medical_documents", // FK biomarker.vault_doc_id dijaga di sisi PUSH (outbox: doc di-enqueue sebelum reading)
 ];
 const PULL_PAGE = 500;
 let pulling = false;
@@ -418,7 +442,8 @@ async function pullTable(table: SyncTableName, profileId: string): Promise<void>
       if (table === "habits" || table === "monitored_conditions" ||
           table === "medications" || table === "medication_intakes" ||
           table === "product_scans" || table === "food_logs" ||
-          table === "saved_products" || table === "nutrition_eaters") return r.id as string;
+          table === "saved_products" || table === "nutrition_eaters" ||
+          table === "medical_documents") return r.id as string;
       if (table === "fasting_settings" || table === "allergy_cards") return r.profile_id as string; // kunci Dexie = profileId
       if (table === "fasting_days") return `${r.profile_id}:${r.date}`;      // kunci Dexie = `${profileId}:${date}`
       return r.client_id as string;
