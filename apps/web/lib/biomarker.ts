@@ -122,25 +122,28 @@ export async function undoBiomarker(clientId: string): Promise<void> {
   void flushOutbox();
 }
 
-/** Pembacaan terbaru suatu biomarker (untuk Risk Panel). */
+/** Pembacaan terbaru suatu biomarker MILIK PROFIL AKTIF (untuk Risk Panel). */
 export async function latestReading(biomarker: "bp" | "glucose"): Promise<LocalBiomarkerReading | undefined> {
+  const profileId = await getActiveProfileId();
   const rows = await db.biomarker_readings
     .where("[biomarker+measuredAt]")
     .between([biomarker, ""], [biomarker, "￿"])
     .reverse()
     .toArray();
-  return rows.find((r) => !r.deletedAt);
+  // filter profil aktif: pembacaan anggota keluarga (profileId lain) TIDAK bocor ke sini
+  return rows.find((r) => !r.deletedAt && r.profileId === profileId);
 }
 
-/** Riwayat suatu biomarker (terbaru dulu), untuk trend/daftar. */
+/** Riwayat suatu biomarker MILIK PROFIL AKTIF (terbaru dulu), untuk trend/daftar. */
 export async function readingHistory(
   biomarker: LocalBiomarkerReading["biomarker"], limit = 30,
 ): Promise<LocalBiomarkerReading[]> {
+  const profileId = await getActiveProfileId();
   const rows = await db.biomarker_readings
     .where("[biomarker+measuredAt]")
     .between([biomarker, ""], [biomarker, "￿"])
     .reverse()
-    .filter((r) => !r.deletedAt)
+    .filter((r) => !r.deletedAt && r.profileId === profileId)
     .toArray();
   return rows.slice(0, limit);
 }

@@ -5,6 +5,7 @@ import { useToast } from "@arta/design-system";
 import {
   familyMembers, ensureSelf, addMember, removeMember, ageFromDob, RELATION_LABEL, type Relation,
 } from "@/lib/family";
+import { MemberHealthCard } from "./MemberHealthCard";
 
 /**
  * Family Health / Caregiver (Fase 6 · FM-1). Roster anggota keluarga (kelola anggota).
@@ -23,6 +24,7 @@ export function FamilyCard() {
   useEffect(() => { void ensureSelf(); }, []);   // seed "Saya" (write) di luar liveQuery
   const members = useLiveQuery(() => familyMembers(), []) ?? [];
   const [adding, setAdding] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [relation, setRelation] = useState<Relation>("child");
   const [dob, setDob] = useState("");
@@ -51,18 +53,26 @@ export function FamilyCard() {
         {members.map((m) => {
           const age = ageFromDob(m.dob);
           return (
-            <div key={m.id} style={row}>
-              <span style={{ fontSize: 20 }}>{RELATION_ICON[m.relation]}</span>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: "var(--ah-text-primary)" }}>
-                  {m.displayName} {m.isSelf && <span style={{ fontSize: 10, fontWeight: 700, color: "var(--ah-cyan, #22D3EE)" }}>SAYA</span>}
-                </p>
-                <p style={{ fontSize: 11, color: "var(--ah-text-tertiary)" }}>
-                  {RELATION_LABEL[m.relation]}{age !== null ? ` · ${age} th` : ""}{m.sex ? ` · ${m.sex === "male" ? "Pria" : "Wanita"}` : ""}
-                </p>
+            <div key={m.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={row}>
+                <span style={{ fontSize: 20 }}>{RELATION_ICON[m.relation]}</span>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: "var(--ah-text-primary)" }}>
+                    {m.displayName} {m.isSelf && <span style={{ fontSize: 10, fontWeight: 700, color: "var(--ah-cyan, #22D3EE)" }}>SAYA</span>}
+                  </p>
+                  <p style={{ fontSize: 11, color: "var(--ah-text-tertiary)" }}>
+                    {RELATION_LABEL[m.relation]}{age !== null ? ` · ${age} th` : ""}{m.sex ? ` · ${m.sex === "male" ? "Pria" : "Wanita"}` : ""}
+                  </p>
+                </div>
+                {!m.isSelf && (
+                  <>
+                    <button onClick={() => setOpenId((id) => (id === m.id ? null : m.id))} style={ghostBtn}>{openId === m.id ? "Tutup" : "🩺 Pantau"}</button>
+                    <button onClick={() => void removeMember(m.id)} aria-label={`Hapus ${m.displayName}`} style={delBtn}>Hapus</button>
+                  </>
+                )}
               </div>
-              {!m.isSelf && (
-                <button onClick={() => void removeMember(m.id)} aria-label={`Hapus ${m.displayName}`} style={delBtn}>Hapus</button>
+              {openId === m.id && !m.isSelf && (
+                <MemberHealthCard memberId={m.id} name={m.displayName} sex={m.sex ?? null} />
               )}
             </div>
           );
