@@ -13,7 +13,7 @@ import type { NutritionInput, FoodForm } from "./nutrition.ts";
  * (mis. Gemini) tidak konsisten: kadang skalar, kadang membungkus `{value,confidence}`,
  * kadang angka sebagai string ("250"). Normalisasi ke number|undefined.
  */
-function looseNumber(v: unknown): number | undefined {
+export function looseNumber(v: unknown): number | undefined {
   if (v && typeof v === "object" && !Array.isArray(v) && "value" in (v as Record<string, unknown>)) {
     v = (v as Record<string, unknown>).value;
   }
@@ -70,7 +70,7 @@ const extractedLabelObject = z.object({
  * kerap mengisi field kosong dengan `null` eksplisit — tanpa ini, `ingredients_raw: null`
  * dll. gagal `.optional()` ("expected string, received null").
  */
-function stripNulls(v: unknown): unknown {
+export function stripNulls(v: unknown): unknown {
   if (Array.isArray(v)) return v.map(stripNulls);
   if (v && typeof v === "object") {
     const out: Record<string, unknown> = {};
