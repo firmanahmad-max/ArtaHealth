@@ -76,6 +76,22 @@ export interface LocalBiomarkerReading {
   deletedAt: string | null;
 }
 
+/**
+ * Anggota keluarga (Fase 6 · FM-1). id = profile_id anggota (dipakai untuk data
+ * kesehatannya di FM-2). "Saya" = profil utama. Belum di-sync ke tabel profiles
+ * (FM-2). Idempoten via id.
+ */
+export interface LocalFamilyMember {
+  id: string;
+  displayName: string;
+  relation: "self" | "father" | "mother" | "child" | "elder" | "other";
+  dob?: string | null;              // "YYYY-MM-DD"
+  sex?: "male" | "female" | null;
+  isSelf: boolean;
+  createdAt: string;
+  deletedAt: string | null;
+}
+
 /** Dokumen medis Vault (Fase 6 · MV-3). extracted = nilai OCR. Idempoten via id. */
 export interface LocalMedicalDocument {
   id: string;
@@ -255,6 +271,7 @@ type ArtaDB = Dexie & {
   allergy_cards: EntityTable<LocalAllergyCard, "profileId">;
   nutrition_eaters: EntityTable<LocalNutritionEater, "id">;
   medical_documents: EntityTable<LocalMedicalDocument, "id">;
+  family_members: EntityTable<LocalFamilyMember, "id">;
   outbox: EntityTable<OutboxEntry, "id">;
   meta: EntityTable<MetaEntry, "key">;
 };
@@ -313,6 +330,10 @@ db.version(10).stores({
 // v11 (Fase 6): Medical Vault — dokumen medis (nilai lab OCR)
 db.version(11).stores({
   medical_documents: "id, scannedAt",
+});
+// v12 (Fase 6): Family Health — roster anggota keluarga (lokal; sync profiles di FM-2)
+db.version(12).stores({
+  family_members: "id, relation",
 });
 
 /** Awal hari lokal perangkat (ISO) — batas "hari ini" untuk skor & dashboard. */

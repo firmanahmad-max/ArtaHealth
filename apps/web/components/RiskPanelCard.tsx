@@ -6,6 +6,7 @@ import {
 } from "@arta/core";
 import { db, type LocalBiomarkerReading } from "@/lib/db";
 import { asClassification } from "@/lib/biomarker";
+import { getActiveProfileId } from "@/lib/sync";
 import { monitoredSet, setMonitored, CONDITION_META, type MonitoredCondition } from "@/lib/conditions";
 import { featureBiomarkerV2, featureRamadan } from "@/lib/features";
 import { isFastingToday } from "@/lib/fasting";
@@ -54,8 +55,10 @@ function formatMeasured(iso: string): string {
 
 export function RiskPanelCard({ onLog }: { onLog: () => void }) {
   const rows = useLiveQuery(async () => {
+    const profileId = await getActiveProfileId();
     const all = await db.biomarker_readings.orderBy("measuredAt").toArray();
-    return all.filter((r) => !r.deletedAt);
+    // hanya pembacaan profil aktif — data anggota keluarga (FM-2) tak bocor ke Risk Panel milik saya
+    return all.filter((r) => !r.deletedAt && r.profileId === profileId);
   }, []);
   const monitored = useLiveQuery(() => monitoredSet(), []);
   // hari puasa → red-flag glukosa mendapat catatan rukhsah (§3.3); inert bila flag Ramadan mati
