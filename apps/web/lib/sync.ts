@@ -6,9 +6,10 @@ import {
   type LocalFastingSettings, type LocalFastingDay,
   type LocalMedication, type LocalMedicationIntake,
   type LocalProductScan, type LocalFoodLog, type LocalSavedProduct, type LocalAllergyCard,
-  type LocalNutritionEater, type LocalMedicalDocument,
+  type LocalNutritionEater, type LocalMedicalDocument, type LocalFamilyMember,
 } from "./db";
 import { getSupabase, type PrimaryProfile } from "./supabase";
+import { featureFamily } from "./features";
 
 /**
  * Sync engine dua arah:
@@ -407,6 +408,7 @@ export async function pullAll(): Promise<void> {
   try {
     const profileId = await getActiveProfileId();
     if (profileId === LOCAL_PROFILE_ID) return;
+    // JALUR CEPAT: profil aktif (owner) — persis seperti sebelum FM-4 (kursor lama).
     for (const table of SYNC_TABLES) {
       try {
         await pullTable(table, profileId);
@@ -414,14 +416,28 @@ export async function pullAll(): Promise<void> {
         // tabel gagal → coba lagi di siklus berikutnya; tabel lain tetap ditarik
       }
     }
+    // FM-4b: tarik data kesehatan ANGGOTA (hanya saat fitur Family aktif → regresi nol).
+    if (featureFamily()) {
+      const memberIds = (await db.family_members.toArray())
+        .filter((m) => !m.deletedAt && m.id !== profileId).map((m) => m.id);
+      for (const pid of memberIds) {
+        for (const table of MEMBER_SYNC_TABLES) {
+          try {
+            await pullTable(table, pid, `pullCursor:${table}:${pid}`);
+          } catch { /* anggota/tabel gagal → coba lagi */ }
+        }
+      }
+    }
   } finally {
     pulling = false;
   }
 }
 
-async function pullTable(table: SyncTableName, profileId: string): Promise<void> {
+/** Tabel data kesehatan anggota yang ditarik multi-profil (FM-4b). Biomarker dulu. */
+const MEMBER_SYNC_TABLES: SyncTableName[] = ["biomarker_readings"];
+
+async function pullTable(table: SyncTableName, profileId: string, cursorKey = `pullCursor:${table}`): Promise<void> {
   const supabase = getSupabase()!;
-  const cursorKey = `pullCursor:${table}`;
   let cursor = (await db.meta.get(cursorKey))?.value ?? "1970-01-01T00:00:00Z";
   for (;;) {
     const { data, error } = await supabase
@@ -459,10 +475,62 @@ async function pullTable(table: SyncTableName, profileId: string): Promise<void>
   }
 }
 
+/**
+ * Sinkronisasi roster keluarga (Fase 6 · FM-4a) — account-scoped (bukan profile_id).
+ * Anggota = baris `profiles` milik akun. Push anggota non-self (idempoten upsert) lalu
+ * pull semua profil akun → `family_members`. Roster kecil → full-select tanpa kursor.
+ * HANYA jalan saat featureFamily() → regresi NOL di produksi (flag mati = tak ada request).
+ * ⚠️ Tak bisa diuji di mode lokal (butuh backend) — smoke test terhadap prod.
+ */
+export async function syncProfiles(): Promise<void> {
+  if (!featureFamily()) return;
+  const supabase = getSupabase();
+  if (!supabase) return;
+  if (typeof navigator !== "undefined" && !navigator.onLine) return;
+  const activeProfileId = await getActiveProfileId();
+  if (activeProfileId === LOCAL_PROFILE_ID) return;
+  const { data: userData } = await supabase.auth.getUser();
+  const accountId = userData?.user?.id;
+  if (!accountId) return;
+
+  try {
+    // PUSH: anggota non-self (self = profil primary, dikelola server). Push dulu → lalu
+    // pull mencerminkannya (edit lokal tak tertimpa). Upsert idempoten via id.
+    const members = await db.family_members.toArray();
+    for (const m of members) {
+      if (m.isSelf) continue;
+      const { error } = await supabase.from("profiles").upsert({
+        id: m.id, account_id: accountId, display_name: m.displayName,
+        relation: m.relation, date_of_birth: m.dob ?? null, sex: m.sex ?? null,
+        is_primary: false, deleted_at: m.deletedAt,
+      }, { onConflict: "id" });
+      if (error) return; // gagal push → hentikan; coba lagi tick berikutnya
+    }
+    // PULL: semua profil akun → family_members (termasuk anggota dari perangkat lain)
+    const { data: rows, error } = await supabase
+      .from("profiles")
+      .select("id, display_name, relation, date_of_birth, sex, is_primary, created_at, deleted_at")
+      .eq("account_id", accountId);
+    if (error || !rows) return;
+    const mapped: LocalFamilyMember[] = rows.map((r) => ({
+      id: r.id as string, displayName: (r.display_name as string) ?? "",
+      relation: ((r.relation as string) ?? "other") as LocalFamilyMember["relation"],
+      dob: (r.date_of_birth as string | null) ?? null, sex: (r.sex as "male" | "female" | null) ?? null,
+      isSelf: r.id === activeProfileId,
+      createdAt: (r.created_at as string) ?? new Date().toISOString(),
+      deletedAt: (r.deleted_at as string | null) ?? null,
+    }));
+    await db.family_members.bulkPut(mapped);
+  } catch {
+    // jaringan/permission → diam; coba lagi tick berikutnya
+  }
+}
+
 /** Pasang listener online + interval; kembalikan fungsi cleanup. */
 export function startSyncLoop(): () => void {
   const tick = () => {
-    void flushOutbox().then(() => pullAll());
+    // urutan: profil dulu (FK reading anggota di FM-4b) → outbox → pull
+    void syncProfiles().then(() => flushOutbox()).then(() => pullAll());
   };
   window.addEventListener("online", tick);
   const interval = setInterval(tick, 30_000);
