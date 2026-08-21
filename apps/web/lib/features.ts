@@ -56,3 +56,11 @@ export const featureFoodDiary = (): boolean =>
  */
 export const featureVault = (): boolean =>
   featureBiomarker() && process.env.NEXT_PUBLIC_FEATURE_VAULT === "1";
+
+/**
+ * Family Health / Caregiver (Fase 6 #2). Default OFF. Kelola anggota keluarga +
+ * (FM-2) pantau kesehatan mereka. Pendekatan aditif — fitur single-profile live
+ * tak terpengaruh. Dev: set NEXT_PUBLIC_FEATURE_FAMILY=1 di .env.local.
+ */
+export const featureFamily = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_FAMILY === "1";
