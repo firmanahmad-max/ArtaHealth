@@ -10,8 +10,9 @@ import { db, type LocalBiomarkerReading } from "./db";
  * biomarker milik anggota keluarga (profileId = id anggota). Klasifikasi deterministik
  * (engine Fase 2), sama seperti pencatatan diri.
  *
- * ⚠️ LOKAL-FIRST: reading anggota TIDAK di-enqueue outbox (profil anggota belum ada di
- *    tabel profiles server → push akan gagal FK & memblok sync). Sync anggota = FM-3.
+ * FM-4b: reading anggota DI-ENQUEUE → sync ke server. Aman karena urutan tick
+ * (syncProfiles→flushOutbox): profil anggota di-push lebih dulu (FK). Bila profil
+ * belum ter-push, push reading gagal & self-heal di tick berikutnya (setelah profil ada).
  */
 
 function shape(input: BiomarkerInput): { context: string | null; values: Record<string, number> } {
@@ -36,7 +37,11 @@ export async function logMemberBiomarker(memberId: string, input: BiomarkerInput
     values, classification, measuredAt: new Date().toISOString(),
     source: "family", vaultDocId: null, deletedAt: null,
   };
-  await db.biomarker_readings.put(row);   // sengaja TANPA enqueue (lihat catatan di atas)
+  await db.transaction("rw", db.biomarker_readings, db.outbox, async () => {
+    await db.biomarker_readings.put(row);
+    await db.outbox.add({ table: "biomarker_readings", clientId: row.clientId, attempts: 0, queuedAt: new Date().toISOString() });
+  });
+  // TIDAK flush langsung: biar tick loop (syncProfiles→flushOutbox) push setelah profil anggota ada (FK)
   return classification;
 }
 

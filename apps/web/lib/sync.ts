@@ -408,6 +408,7 @@ export async function pullAll(): Promise<void> {
   try {
     const profileId = await getActiveProfileId();
     if (profileId === LOCAL_PROFILE_ID) return;
+    // JALUR CEPAT: profil aktif (owner) — persis seperti sebelum FM-4 (kursor lama).
     for (const table of SYNC_TABLES) {
       try {
         await pullTable(table, profileId);
@@ -415,14 +416,28 @@ export async function pullAll(): Promise<void> {
         // tabel gagal → coba lagi di siklus berikutnya; tabel lain tetap ditarik
       }
     }
+    // FM-4b: tarik data kesehatan ANGGOTA (hanya saat fitur Family aktif → regresi nol).
+    if (featureFamily()) {
+      const memberIds = (await db.family_members.toArray())
+        .filter((m) => !m.deletedAt && m.id !== profileId).map((m) => m.id);
+      for (const pid of memberIds) {
+        for (const table of MEMBER_SYNC_TABLES) {
+          try {
+            await pullTable(table, pid, `pullCursor:${table}:${pid}`);
+          } catch { /* anggota/tabel gagal → coba lagi */ }
+        }
+      }
+    }
   } finally {
     pulling = false;
   }
 }
 
-async function pullTable(table: SyncTableName, profileId: string): Promise<void> {
+/** Tabel data kesehatan anggota yang ditarik multi-profil (FM-4b). Biomarker dulu. */
+const MEMBER_SYNC_TABLES: SyncTableName[] = ["biomarker_readings"];
+
+async function pullTable(table: SyncTableName, profileId: string, cursorKey = `pullCursor:${table}`): Promise<void> {
   const supabase = getSupabase()!;
-  const cursorKey = `pullCursor:${table}`;
   let cursor = (await db.meta.get(cursorKey))?.value ?? "1970-01-01T00:00:00Z";
   for (;;) {
     const { data, error } = await supabase
