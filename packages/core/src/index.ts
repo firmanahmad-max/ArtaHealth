@@ -20,3 +20,4 @@ export * from "./allergen.ts";
 export * from "./food-db.ts";
 export * from "./food-estimate.ts";
 export * from "./food-extract.ts";
+export * from "./vault-extract.ts";

@@ -47,3 +47,12 @@ export const featureNutrition = (): boolean =>
  */
 export const featureFoodDiary = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_FOOD_DIARY === "1";
+
+/**
+ * Medical Vault OCR (Fase 6 #1). Bagian modul biomarker (butuh featureBiomarker),
+ * tapi sub-flag sendiri: menulis biomarker_readings source=vault_ocr + tabel baru
+ * medical_documents → butuh migration 0022 di-db-push + Edge Function vault-scan
+ * deploy sebelum nyala. Dev: set NEXT_PUBLIC_FEATURE_VAULT=1 di .env.local.
+ */
+export const featureVault = (): boolean =>
+  featureBiomarker() && process.env.NEXT_PUBLIC_FEATURE_VAULT === "1";
