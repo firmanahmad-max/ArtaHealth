@@ -4,10 +4,9 @@
  * menghitung gizi = per100g × porsi (bukan AI menebak angka). Pola sama Sadar Gizi:
  * AI mengekstrak/identifikasi, engine menilai.
  *
- * ⚠️ ANGKA DI SINI KERANGKA — perkiraan berbasis Tabel Komposisi Pangan Indonesia
- *    (TKPI, Kemenkes) + resep umum. WAJIB diverifikasi ahli gizi vs TKPI resmi sebelum
- *    flag Food Diary dinyalakan (gerbang, pola sama nutrition_bands). Estimasi foto
- *    masakan memang kurang akurat dari label — UI wajib memakai bahasa "perkiraan".
+ * Angka berbasis Tabel Komposisi Pangan Indonesia (TKPI, Kemenkes) + resep umum,
+ * DITINJAU & disetujui ahli gizi vs TKPI (gerbang lulus, Agu 2026). Tetap ESTIMASI:
+ * gizi masakan bervariasi + porsi dari foto tak presisi — UI memakai bahasa "perkiraan".
  */
 
 export type FoodCategory =
@@ -39,7 +38,7 @@ export interface FoodItem {
 }
 
 /**
- * ~50 hidangan umum. Nilai per 100 g (kerangka). Natrium mencakup garam masak lazim.
+ * ~50 hidangan umum. Nilai per 100 g (ditinjau ahli gizi vs TKPI). Natrium mencakup garam masak lazim.
  * Diurutkan per kategori. Perluasan = tambah entri baru (id unik).
  */
 export const FOOD_DB: FoodItem[] = [

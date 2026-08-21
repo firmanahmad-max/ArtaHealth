@@ -34,17 +34,16 @@ export const featureMedication = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_MEDICATION === "1";
 
 /**
- * Sadar Gizi / scanner label (Fase 4). Default OFF. Ambang gizi = kerangka awal,
- * wajib diverifikasi vs Permenkes GGL/BPOM + review ahli gizi sebelum nyala
- * (addendum-sadar-gizi §11). Dev: set NEXT_PUBLIC_FEATURE_NUTRITION=1 di .env.local.
+ * Sadar Gizi / scanner label (Fase 4). Ambang gizi ditinjau ahli gizi (gerbang §10
+ * lulus) — LIVE di produksi. Dev: set NEXT_PUBLIC_FEATURE_NUTRITION=1 di .env.local.
  */
 export const featureNutrition = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_NUTRITION === "1";
 
 /**
- * Food Diary AI + Perencana Menu (Fase 6). Default OFF. FOOD_DB = kerangka, wajib
- * verifikasi ahli gizi vs TKPI Kemenkes sebelum nyala; estimasi foto masakan < akurasi
- * label (framing "perkiraan"). Dev: set NEXT_PUBLIC_FEATURE_FOOD_DIARY=1 di .env.local.
+ * Food Diary AI + Perencana Menu (Fase 6). Default OFF. FOOD_DB ditinjau ahli gizi vs
+ * TKPI Kemenkes (gerbang lulus, Agu 2026); estimasi foto masakan < akurasi label
+ * (framing "perkiraan"). Dev: set NEXT_PUBLIC_FEATURE_FOOD_DIARY=1 di .env.local.
  */
 export const featureFoodDiary = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_FOOD_DIARY === "1";
