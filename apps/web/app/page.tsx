@@ -28,7 +28,8 @@ import { FoodDiaryCard } from "@/components/FoodDiaryCard";
 import { MenuPlannerCard } from "@/components/MenuPlannerCard";
 import { VaultCard } from "@/components/VaultCard";
 import { FamilyCard } from "@/components/FamilyCard";
-import { featureBiomarker, featureRamadan, featureMedication, featureNutrition, featureFoodDiary, featureVault, featureFamily } from "@/lib/features";
+import { GamificationCard } from "@/components/GamificationCard";
+import { featureBiomarker, featureRamadan, featureMedication, featureNutrition, featureFoodDiary, featureVault, featureFamily, featureGamification } from "@/lib/features";
 import { isScheduledOn, isoWeekdayOf } from "@arta/core";
 import { todayKey } from "@/lib/habits";
 import { isFastingToday } from "@/lib/fasting";
@@ -263,6 +264,8 @@ export default function Dashboard() {
         {featureFoodDiary() && <MenuPlannerCard />}
 
         {featureFamily() && <FamilyCard />}
+
+        {featureGamification() && <GamificationCard />}
 
         <HabitCard />
 
