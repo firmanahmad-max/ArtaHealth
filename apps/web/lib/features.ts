@@ -73,3 +73,13 @@ export const featureFamily = (): boolean =>
  */
 export const featureGamification = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_GAMIFICATION === "1";
+
+/**
+ * Early Warning / deteksi anomali baseline (Fase 6 #4). Default OFF. Menandai geseran
+ * metrik (berat/tensi/gula/asam urat/tidur) terhadap baseline PRIBADI via z-score
+ * deterministik — melengkapi Panel Risiko (ambang absolut). Butuh ≥~10 titik baseline
+ * per metrik → diam bila data kurang. Tanpa tabel baru (murni derive dari Dexie).
+ * Dev: set NEXT_PUBLIC_FEATURE_EARLY_WARNING=1 di .env.local.
+ */
+export const featureEarlyWarning = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_EARLY_WARNING === "1";

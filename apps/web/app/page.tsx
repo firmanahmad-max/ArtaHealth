@@ -29,7 +29,8 @@ import { MenuPlannerCard } from "@/components/MenuPlannerCard";
 import { VaultCard } from "@/components/VaultCard";
 import { FamilyCard } from "@/components/FamilyCard";
 import { GamificationCard } from "@/components/GamificationCard";
-import { featureBiomarker, featureRamadan, featureMedication, featureNutrition, featureFoodDiary, featureVault, featureFamily, featureGamification } from "@/lib/features";
+import { EarlyWarningCard } from "@/components/EarlyWarningCard";
+import { featureBiomarker, featureRamadan, featureMedication, featureNutrition, featureFoodDiary, featureVault, featureFamily, featureGamification, featureEarlyWarning } from "@/lib/features";
 import { isScheduledOn, isoWeekdayOf } from "@arta/core";
 import { todayKey } from "@/lib/habits";
 import { isFastingToday } from "@/lib/fasting";
@@ -248,6 +249,8 @@ export default function Dashboard() {
         <InsightCard />
 
         {featureBiomarker() && <RiskPanelCard onLog={() => setSheetOpen(true)} />}
+
+        {featureEarlyWarning() && <EarlyWarningCard />}
 
         {featureVault() && <VaultCard />}
 

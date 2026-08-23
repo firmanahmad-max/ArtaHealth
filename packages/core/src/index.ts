@@ -22,3 +22,4 @@ export * from "./food-estimate.ts";
 export * from "./food-extract.ts";
 export * from "./vault-extract.ts";
 export * from "./gamification.ts";
+export * from "./early-warning.ts";
