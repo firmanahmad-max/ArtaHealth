@@ -98,6 +98,7 @@ Sprint 5–6: AI Gateway + prompt registry + Safety Guard + Daily Insight + AI C
 | `gate-nutrition-launch.md` | Gerbang & launch Fase 4 Sadar Gizi: ambang gizi + matriks kondisi + sinonim/teks alergen + langkah deploy |
 | `addendum-family-health.md` | Desain sinkronisasi Family Health/Caregiver (FM-4): profiles account-scoped + multi-profil pull + FK ordering + risiko |
 | `addendum-rppg.md` | Cek Nadi via kamera (Fase 6 #3): metode jari+flash, pipeline sinyal→BPM, gerbang akurasi + review medis, disclaimer non-diagnosis (RP-1 spike) |
+| `release-checklist-ramadan.md` | Checklist rilis Fase 3 Ramadan: deploy send-reminders + nyalakan flag + smoke test + rollback (gerbang §10 lewat) |
 | `prototypes/*.jsx` | 2 prototipe React (referensi UI & interaksi) |
 | `clinical-refs/` | PDF guideline resmi (diisi saat verifikasi ambang) |
 
