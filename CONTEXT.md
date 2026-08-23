@@ -99,6 +99,7 @@ Sprint 5–6: AI Gateway + prompt registry + Safety Guard + Daily Insight + AI C
 | `addendum-family-health.md` | Desain sinkronisasi Family Health/Caregiver (FM-4): profiles account-scoped + multi-profil pull + FK ordering + risiko |
 | `addendum-rppg.md` | Cek Nadi via kamera (Fase 6 #3): metode jari+flash, pipeline sinyal→BPM, gerbang akurasi + review medis, disclaimer non-diagnosis (RP-1 spike) |
 | `release-checklist-ramadan.md` | Checklist rilis Fase 3 Ramadan: deploy send-reminders + nyalakan flag + smoke test + rollback (gerbang §10 lewat) |
+| `roadmap-v3.md` | Rancangan V3/Fase 7: urutan fitur + gerbang + keputusan PWA-vs-native (wearable) + deep-dive V3-1 Mode Konsultasi QR/Laporan Dokter |
 | `prototypes/*.jsx` | 2 prototipe React (referensi UI & interaksi) |
 | `clinical-refs/` | PDF guideline resmi (diisi saat verifikasi ambang) |
 
