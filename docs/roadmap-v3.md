@@ -101,7 +101,7 @@ Data laporan = **T1 sensitif** → mekanisme berbagi adalah titik risiko utama. 
 
 ### 6.5 Privasi & keamanan (T1)
 - Snapshot terenkripsi; **tak ada PII di URL/query** (token acak); TTL pendek; tombol **cabut akses**.
-- Signed URL tak bisa ditebak; akses read-only; watermark "disiapkan oleh pemilik akun, bukan dokumen medis resmi".
+- Signed URL tak bisa ditebak; akses read-only; identitas ArtaHealth ringan sebagai sumber + watermark/disclaimer "disiapkan pemilik akun via ArtaHealth, bukan dokumen medis resmi".
 - Data kesehatan tak pernah masuk log/analytics/Sentry (§5.3). Snapshot auto-hapus setelah kedaluwarsa.
 - Consent eksplisit pengguna tiap kali membuat link ("laporan ini bisa dibuka siapa pun yang punya link selama X menit").
 
@@ -112,7 +112,7 @@ Data laporan = **T1 sensitif** → mekanisme berbagi adalah titik risiko utama. 
   server-side, bukan data yang disinkron ke Dexie (hindari kompleksitas).
 
 ### 6.7 Increment
-- **MK-1**: engine `consultation-report.ts` (+ test) + `lib/consultation.ts` (rakit dari Dexie profil aktif) + `ConsultationReportCard`/halaman cetak + flag `NEXT_PUBLIC_FEATURE_CONSULTATION`. On-screen/print. **Tanpa migrasi.**
+- **MK-1** ← **MVP terpilih**: engine `consultation-report.ts` (+ test) + `lib/consultation.ts` (rakit dari Dexie profil aktif, **rentang default 90 hari**) + `ConsultationReportCard`/halaman cetak (identitas ArtaHealth ringan sebagai sumber + disclaimer non-diagnosis) + flag `NEXT_PUBLIC_FEATURE_CONSULTATION`. On-screen/print. **Tanpa migrasi.**
 - **MK-2**: `consultation_reports` (migration) + Edge Function `report-share` (buat snapshot terenkripsi + signed URL TTL) + QR + halaman read-only publik + revoke. **Gerbang privasi/keamanan.**
 - **MK-3**: narasi ringkas AI (opsional, fallback template) + pilihan rentang tanggal + pilih bagian yang disertakan.
 - **MK-4**: integrasi Family (buat laporan untuk anggota, dengan izin) + lampiran dokumen Vault (signed).
@@ -122,10 +122,12 @@ Data laporan = **T1 sensitif** → mekanisme berbagi adalah titik risiko utama. 
 2. **Review privasi/keamanan** (khusus MK-2): mekanisme signed URL/TTL/enkripsi/revoke diaudit; uji kebocoran.
 3. **Uji dokter nyata**: apakah formatnya berguna & terbaca di ruang praktik?
 
-### 6.9 Pertanyaan terbuka (untuk Firman)
-- MVP cukup **on-screen + print** (MK-1) dulu, atau langsung target **QR share link** (MK-2)?
-- Rentang default laporan: 30 / 90 hari / sejak kunjungan terakhir?
-- Perlu **logo/kop** akun & tanda tangan disclaimer? (hindari kesan "dokumen medis resmi").
+### 6.9 Keputusan (terkunci 23 Agu 2026)
+- **MVP = MK-1 on-screen/print dulu** (tanpa server/tabel/link) → QR share (MK-2) menyusul setelah gerbang privasi.
+- **Rentang default laporan = 90 hari** (cukup tampilkan tren bermakna; selaras Early Warning).
+- **Framing = identitas ArtaHealth ringan** (nama/logo kecil sebagai sumber) + disclaimer non-diagnosis; TIDAK menyerupai dokumen medis resmi.
+
+Siap dibangun: **MK-1**.
 
 ---
 
