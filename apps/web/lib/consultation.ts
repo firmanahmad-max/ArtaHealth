@@ -16,6 +16,13 @@ import { earlyWarningReport } from "./early-warning";
 
 const WINDOW_DAYS = 90;
 
+export interface ReportOptions {
+  days?: number;
+  /** Subjek laporan (default profil aktif). Untuk anggota keluarga = profileId anggota (MK-4). */
+  profileId?: string;
+  nowMs?: number;
+}
+
 type Cls = { band?: { label?: string }; zone?: string; guidelineRef?: string } | null;
 
 const BM_LABEL: Record<string, string> = {
@@ -31,9 +38,11 @@ const num = (arr: number[]): number | null => (arr.length ? arr.reduce((s, v) =>
 const round1 = (v: number | null): number | null => (v == null ? null : Math.round(v * 10) / 10);
 const distinctDays = (isos: string[]): number => new Set(isos.map((s) => s.slice(0, 10))).size;
 
-/** Susun laporan konsultasi untuk profil aktif (default 90 hari terakhir). */
-export async function consultationReport(days = WINDOW_DAYS, nowMs = Date.now()): Promise<ConsultationReport> {
-  const pid = await getActiveProfileId();
+/** Susun laporan konsultasi (default profil aktif, 90 hari terakhir; MK-4: subjek anggota). */
+export async function consultationReport(opts: ReportOptions = {}): Promise<ConsultationReport> {
+  const days = opts.days ?? WINDOW_DAYS;
+  const nowMs = opts.nowMs ?? Date.now();
+  const pid = opts.profileId ?? await getActiveProfileId();
   const fromMs = nowMs - days * 86_400_000;
   const fromISO = new Date(fromMs).toISOString();
   const toISO = new Date(nowMs).toISOString();
@@ -51,19 +60,20 @@ export async function consultationReport(days = WINDOW_DAYS, nowMs = Date.now())
       db.activity_logs.toArray(),
       db.food_logs.toArray(),
       db.medical_documents.toArray(),
-      earlyWarningReport(nowMs),
+      earlyWarningReport(nowMs, pid),
     ]);
 
   const mine = <T extends { profileId: string; deletedAt: string | null }>(rows: T[]) =>
     rows.filter((r) => r.profileId === pid && !r.deletedAt);
 
-  // ── Pasien ──
-  const self = members.find((m) => m.isSelf && !m.deletedAt);
-  const displayName = self?.displayName ?? (await db.meta.get("displayName"))?.value ?? undefined;
+  // ── Pasien ── (subjek = profil pid: bisa "Saya" (isSelf) atau anggota keluarga)
+  const subject = members.find((m) => m.id === pid && !m.deletedAt)
+    ?? members.find((m) => m.isSelf && !m.deletedAt);
+  const displayName = subject?.displayName ?? (await db.meta.get("displayName"))?.value ?? undefined;
   const patient = {
     name: displayName as string | undefined,
-    age: ageFromDob(self?.dob),
-    sex: (self?.sex ?? null) as "male" | "female" | null,
+    age: ageFromDob(subject?.dob),
+    sex: (subject?.sex ?? null) as "male" | "female" | null,
     conditions: mine(conditions).filter((c) => c.status !== "resolved")
       .map((c) => CONDITION_LABEL_ID[c.condition] ?? c.condition),
   };

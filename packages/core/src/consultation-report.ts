@@ -149,3 +149,44 @@ export function buildConsultationReport(input: ConsultationReportInput): Consult
     disclaimer: CONSULTATION_DISCLAIMER,
   };
 }
+
+// ===== MK-3: pilih bagian + ringkasan naratif =====
+
+/** Bagian mana yang disertakan (MK-3). Bagian yang dimatikan dikosongkan lalu dirakit ulang. */
+export function filterReport(r: ConsultationReport, include: Record<ReportSection, boolean>): ConsultationReport {
+  return buildConsultationReport({
+    patient: r.patient,
+    range: r.range,
+    generatedAtISO: r.generatedAtISO,
+    biomarkers: include.biomarkers ? r.biomarkers : [],
+    warnings: include.warnings ? r.warnings : [],
+    medications: include.medications ? r.medications : [],
+    lifestyle: include.lifestyle ? r.lifestyle : null,
+    nutrition: include.nutrition ? r.nutrition : null,
+    documents: include.documents ? r.documents : [],
+  });
+}
+
+/**
+ * Ringkasan naratif DETERMINISTIK (bukan AI) — rekap faktual angka/tren dalam kalimat,
+ * tanpa interpretasi klinis. Aman & bisa diuji. (AI enhancement = opsi masa depan.)
+ */
+export function narrativeSummary(r: ConsultationReport): string {
+  if (r.isEmpty) return "Belum ada data cukup pada rentang ini untuk diringkas.";
+  const parts: string[] = [`Rentang ${r.range.days} hari terakhir.`];
+
+  if (r.biomarkers.length) {
+    const trends = r.biomarkers
+      .filter((b) => b.summary && (b.summary.direction === "rising" || b.summary.direction === "falling"))
+      .map((b) => `${b.label.toLowerCase()} ${b.summary!.direction === "rising" ? "cenderung naik" : "cenderung turun"}`);
+    parts.push(`${r.biomarkers.length} biomarker dipantau${trends.length ? ` — ${trends.join(", ")}` : ""}.`);
+  }
+  if (r.warnings.length) parts.push(`${r.warnings.length} sinyal deteksi dini perlu diperhatikan.`);
+  if (r.medications.length) {
+    const adh = r.medications.map((m) => m.adherencePct).filter((x): x is number => x != null);
+    const avg = adh.length ? Math.round(adh.reduce((s, v) => s + v, 0) / adh.length) : null;
+    parts.push(`${r.medications.length} obat tercatat${avg != null ? `, kepatuhan rata-rata ${avg}%` : ""}.`);
+  }
+  parts.push("Konfirmasikan interpretasi ke tenaga kesehatan.");
+  return parts.join(" ");
+}

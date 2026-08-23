@@ -106,9 +106,9 @@ export interface EarlyWarningReport {
   nowMs: number;
 }
 
-/** Susun laporan Early Warning untuk profil aktif. */
-export async function earlyWarningReport(nowMs: number = Date.now()): Promise<EarlyWarningReport> {
-  const pid = await getActiveProfileId();
+/** Susun laporan Early Warning untuk profil aktif (atau profil tertentu, mis. anggota keluarga). */
+export async function earlyWarningReport(nowMs: number = Date.now(), profileId?: string): Promise<EarlyWarningReport> {
+  const pid = profileId ?? await getActiveProfileId();
   const warnings: EarlyWarning[] = [];
   const monitoring: EWMonitoring[] = [];
 
