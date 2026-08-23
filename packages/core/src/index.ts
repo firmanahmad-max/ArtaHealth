@@ -24,3 +24,4 @@ export * from "./vault-extract.ts";
 export * from "./gamification.ts";
 export * from "./early-warning.ts";
 export * from "./rppg.ts";
+export * from "./consultation-report.ts";
