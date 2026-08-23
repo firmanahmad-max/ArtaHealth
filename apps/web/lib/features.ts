@@ -83,3 +83,12 @@ export const featureGamification = (): boolean =>
  */
 export const featureEarlyWarning = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_EARLY_WARNING === "1";
+
+/**
+ * Cek Nadi via kamera / rPPG (Fase 6 #3). Default OFF — SPIKE/PoC. Estimasi denyut
+ * (BPM) dari ujung jari + flash, diproses on-device (video tak diunggah). BUKAN alat
+ * medis. Flag baru nyala setelah gerbang akurasi + review medis (docs/addendum-rppg.md §7).
+ * Dev: set NEXT_PUBLIC_FEATURE_RPPG=1 di .env.local.
+ */
+export const featureRppg = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_RPPG === "1";
