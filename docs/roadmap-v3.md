@@ -113,7 +113,7 @@ Data laporan = **T1 sensitif** → mekanisme berbagi adalah titik risiko utama. 
 
 ### 6.7 Increment
 - **MK-1** ← **MVP terpilih**: engine `consultation-report.ts` (+ test) + `lib/consultation.ts` (rakit dari Dexie profil aktif, **rentang default 90 hari**) + `ConsultationReportCard`/halaman cetak (identitas ArtaHealth ringan sebagai sumber + disclaimer non-diagnosis) + flag `NEXT_PUBLIC_FEATURE_CONSULTATION`. On-screen/print. **Tanpa migrasi.**
-- **MK-2**: `consultation_reports` (migration) + Edge Function `report-share` (buat snapshot terenkripsi + signed URL TTL) + QR + halaman read-only publik + revoke. **Gerbang privasi/keamanan.**
+- **MK-2** ← **SELESAI di kode** (flag OFF, GERBANG belum lewat): migration `0024_consultation_reports` (snapshot terenkripsi, token, TTL, revoke, RLS) + Edge Function `consultation-share` (create/revoke, JWT user) + `consultation-view` (baca publik via token, service-role) + enkripsi AES-GCM (`_shared/report-crypto.ts`, secret `CONSULTATION_ENC_KEY`) + `lib/consultation-share.ts` + QR (lib `qrcode`) di `ConsultationReportCard` + halaman publik `/r/[token]`. **Langkah rilis (tugas Firman): db-push 0024 + set secret `CONSULTATION_ENC_KEY` (base64 32 byte) + deploy 2 fungsi + GERBANG privasi/keamanan §6.8 → baru nyalakan.** Runtime-untested s/d deploy (tak bisa diuji lokal tanpa Supabase).
 - **MK-3**: narasi ringkas AI (opsional, fallback template) + pilihan rentang tanggal + pilih bagian yang disertakan.
 - **MK-4**: integrasi Family (buat laporan untuk anggota, dengan izin) + lampiran dokumen Vault (signed).
 
