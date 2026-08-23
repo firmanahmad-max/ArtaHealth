@@ -64,3 +64,12 @@ export const featureVault = (): boolean =>
  */
 export const featureFamily = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_FAMILY === "1";
+
+/**
+ * Gamification (Fase 6 #6). Default OFF. XP/level/badge/misi harian DITURUNKAN dari
+ * aktivitas yang sudah ada (habit, log, biomarker, gizi) — deterministik, tanpa tabel
+ * baru (persistensi player_stats/achievements = GM-2). Aditif: regresi nol saat mati.
+ * Dev: set NEXT_PUBLIC_FEATURE_GAMIFICATION=1 di .env.local.
+ */
+export const featureGamification = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_GAMIFICATION === "1";
