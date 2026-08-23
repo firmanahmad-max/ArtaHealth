@@ -217,6 +217,8 @@ Deno.serve(async (req) => {
                     sahurPayload,
                   );
                   sent++;
+                  await supabase.from("push_devices")
+                    .update({ last_used_at: new Date().toISOString() }).eq("id", device.id);
                 } catch (e) {
                   const status = (e as { statusCode?: number }).statusCode;
                   if (status === 404 || status === 410) {
