@@ -31,7 +31,8 @@ import { FamilyCard } from "@/components/FamilyCard";
 import { GamificationCard } from "@/components/GamificationCard";
 import { EarlyWarningCard } from "@/components/EarlyWarningCard";
 import { PulseCheckCard } from "@/components/PulseCheckCard";
-import { featureBiomarker, featureRamadan, featureMedication, featureNutrition, featureFoodDiary, featureVault, featureFamily, featureGamification, featureEarlyWarning, featureRppg } from "@/lib/features";
+import { ConsultationReportCard } from "@/components/ConsultationReportCard";
+import { featureBiomarker, featureRamadan, featureMedication, featureNutrition, featureFoodDiary, featureVault, featureFamily, featureGamification, featureEarlyWarning, featureRppg, featureConsultation } from "@/lib/features";
 import { isScheduledOn, isoWeekdayOf } from "@arta/core";
 import { todayKey } from "@/lib/habits";
 import { isFastingToday } from "@/lib/fasting";
@@ -254,6 +255,8 @@ export default function Dashboard() {
         {featureEarlyWarning() && <EarlyWarningCard />}
 
         {featureRppg() && <PulseCheckCard />}
+
+        {featureConsultation() && <ConsultationReportCard />}
 
         {featureVault() && <VaultCard />}
 

@@ -85,6 +85,16 @@ export const featureEarlyWarning = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_EARLY_WARNING === "1";
 
 /**
+ * Mode Konsultasi — Laporan Dokter (V3-1 · MK-1). Default OFF. Merangkai data yang sudah
+ * dicatat (biomarker/tren, Early Warning, obat, gaya hidup, gizi, dokumen) jadi laporan
+ * rapi untuk dibawa ke dokter (on-screen/print, deterministik, non-diagnosis). Reuse data
+ * (TANPA tabel baru). Berbagi via QR/link = MK-2 (menyusul, gerbang privasi).
+ * Dev: set NEXT_PUBLIC_FEATURE_CONSULTATION=1 di .env.local.
+ */
+export const featureConsultation = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_CONSULTATION === "1";
+
+/**
  * Cek Nadi via kamera / rPPG (Fase 6 #3). Default OFF — SPIKE/PoC. Estimasi denyut
  * (BPM) dari ujung jari + flash, diproses on-device (video tak diunggah). BUKAN alat
  * medis. Flag baru nyala setelah gerbang akurasi + review medis (docs/addendum-rppg.md §7).
