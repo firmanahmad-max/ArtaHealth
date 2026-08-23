@@ -143,3 +143,53 @@ export function missionBonusXp(today: TodayCounts): number {
 }
 
 export const emptyActivity = (): PlayerActivity => ({ ...zero });
+
+// ===== Persistensi (GM-2) — event log achievement =====
+//
+// Reward yang PATUT DICATAT permanen: (1) badge saat pertama diraih (+earned_at),
+// (2) misi harian yang tuntas → bonus XP DIBANK per hari (kalau tidak, bonus hilang
+// tiap ganti hari). Model event-sourced dengan id DETERMINISTIK → idempoten & aman
+// lintas-perangkat (dua perangkat menghasilkan id sama → tak dobel). XP/level tetap
+// diturunkan: total = computeXp(aktivitas) + bankedXp(misi tersimpan).
+
+export type AchievementKind = "badge" | "mission";
+
+export interface AchievementRecord {
+  kind: AchievementKind;
+  key: string;
+  day: string | null;   // null utk badge; "YYYY-MM-DD" lokal utk misi
+  xp: number;           // bonus XP (misi); 0 utk badge
+}
+
+/** Id deterministik: perangkat mana pun menghasilkan id sama untuk reward sama. */
+export function achievementId(profileId: string, kind: AchievementKind, key: string, day: string | null): string {
+  return `${profileId}:${kind}:${key}:${day ?? ""}`;
+}
+
+/** Kunci lokal (tanpa profil) untuk cek "sudah dimiliki". */
+export function achievementKey(kind: AchievementKind, key: string, day: string | null): string {
+  return `${kind}:${key}:${day ?? ""}`;
+}
+
+/** Badge yang diraih → catatan (xp 0; nilai badge ada di level, bukan XP ganda). */
+export function badgeGrants(a: PlayerActivity): AchievementRecord[] {
+  return earnedBadges(a).map((b) => ({ kind: "badge" as const, key: b.key, day: null, xp: 0 }));
+}
+
+/** Misi hari ini yang tuntas → catatan (bonus XP dibank per hari). */
+export function missionGrants(today: TodayCounts, day: string): AchievementRecord[] {
+  return missionStatus(today)
+    .filter((s) => s.done)
+    .map((s) => ({ kind: "mission" as const, key: s.mission.key, day, xp: s.mission.xp }));
+}
+
+/** Reward yang layak diraih tapi BELUM tersimpan (untuk ditulis + di-sync). */
+export function pendingGrants(a: PlayerActivity, today: TodayCounts, day: string, have: Set<string>): AchievementRecord[] {
+  return [...badgeGrants(a), ...missionGrants(today, day)]
+    .filter((r) => !have.has(achievementKey(r.kind, r.key, r.day)));
+}
+
+/** Total bonus XP misi yang sudah dibank (dari catatan tersimpan). */
+export function bankedXp(records: Pick<AchievementRecord, "kind" | "xp">[]): number {
+  return records.filter((r) => r.kind === "mission").reduce((sum, r) => sum + r.xp, 0);
+}

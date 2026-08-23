@@ -1,7 +1,10 @@
 "use client";
-import { computeXp, levelForXp, type PlayerActivity, type TodayCounts } from "@arta/core";
-import { db } from "./db";
-import { getActiveProfileId } from "./sync";
+import {
+  computeXp, levelForXp, bankedXp, pendingGrants, achievementId, achievementKey,
+  type PlayerActivity, type TodayCounts,
+} from "@arta/core";
+import { db, type LocalAchievement } from "./db";
+import { getActiveProfileId, flushOutbox } from "./sync";
 
 /**
  * Gamification (Fase 6 #6) — turunkan aktivitas pemain dari Dexie (deterministik),
@@ -96,4 +99,54 @@ export async function playerLevel() {
   const a = await playerActivity();
   const xp = computeXp(a);
   return { activity: a, xp, ...levelForXp(xp) };
+}
+
+// ===== Persistensi (GM-2) =====
+
+/** Achievement tersimpan (aktif) milik profil aktif. */
+export async function persistedAchievements(): Promise<LocalAchievement[]> {
+  const pid = await getActiveProfileId();
+  return (await db.achievements.where("profileId").equals(pid).toArray()).filter((r) => !r.deletedAt);
+}
+
+/** Total XP = aktivitas tersinkron + bonus misi yang sudah dibank. */
+export async function totalXp(): Promise<number> {
+  const [a, persisted] = await Promise.all([playerActivity(), persistedAchievements()]);
+  return computeXp(a) + bankedXp(persisted);
+}
+
+let granting = false;
+/**
+ * Catat reward yang layak diraih tapi belum tersimpan (badge & misi tuntas hari ini).
+ * WAJIB dipanggil dari efek (BUKAN di dalam liveQuery) → hindari ReadOnlyError.
+ * Idempoten via id deterministik. Mengembalikan key badge yang BARU diraih (untuk toast).
+ */
+export async function grantAchievements(): Promise<string[]> {
+  if (granting) return [];
+  granting = true;
+  try {
+    const pid = await getActiveProfileId();
+    const [activity, today, existing] = await Promise.all([
+      playerActivity(), todayCounts(), persistedAchievements(),
+    ]);
+    const have = new Set(existing.map((r) => achievementKey(r.kind, r.key, r.day)));
+    const pending = pendingGrants(activity, today, todayKey(), have);
+    if (pending.length === 0) return [];
+    const now = new Date().toISOString();
+    const rows: LocalAchievement[] = pending.map((g) => ({
+      id: achievementId(pid, g.kind, g.key, g.day), profileId: pid,
+      kind: g.kind, key: g.key, day: g.day, xp: g.xp,
+      earnedAt: now, updatedAt: now, deletedAt: null,
+    }));
+    await db.transaction("rw", db.achievements, db.outbox, async () => {
+      for (const row of rows) {
+        await db.achievements.put(row);
+        await db.outbox.add({ table: "achievements", clientId: row.id, attempts: 0, queuedAt: now });
+      }
+    });
+    void flushOutbox();
+    return pending.filter((g) => g.kind === "badge").map((g) => g.key);
+  } finally {
+    granting = false;
+  }
 }
