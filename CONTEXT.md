@@ -97,6 +97,7 @@ Sprint 5–6: AI Gateway + prompt registry + Safety Guard + Daily Insight + AI C
 | `gate-content-review-33.md` | Gerbang §10: paket review konten medis-puasa & keislaman (§3.3) |
 | `gate-nutrition-launch.md` | Gerbang & launch Fase 4 Sadar Gizi: ambang gizi + matriks kondisi + sinonim/teks alergen + langkah deploy |
 | `addendum-family-health.md` | Desain sinkronisasi Family Health/Caregiver (FM-4): profiles account-scoped + multi-profil pull + FK ordering + risiko |
+| `addendum-rppg.md` | Cek Nadi via kamera (Fase 6 #3): metode jari+flash, pipeline sinyal→BPM, gerbang akurasi + review medis, disclaimer non-diagnosis (RP-1 spike) |
 | `prototypes/*.jsx` | 2 prototipe React (referensi UI & interaksi) |
 | `clinical-refs/` | PDF guideline resmi (diisi saat verifikasi ambang) |
 
