@@ -238,8 +238,22 @@ export interface LocalNutritionEater {
   deletedAt: string | null;
 }
 
+/** Achievement tersimpan (Fase 6 · GM-2) — badge (day=null) atau misi harian (day set).
+ *  Id deterministik `${profileId}:${kind}:${key}:${day??""}` → idempoten lintas-perangkat. */
+export interface LocalAchievement {
+  id: string;
+  profileId: string;
+  kind: "badge" | "mission";
+  key: string;
+  day: string | null;             // "YYYY-MM-DD" lokal utk misi; null utk badge
+  xp: number;                     // bonus XP (misi); 0 utk badge
+  earnedAt: string;               // ISO
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
 export type LogTableName = "hydration_logs" | "sleep_logs" | "activity_logs" | "mood_logs" | "weight_logs";
-export type SyncTableName = LogTableName | "habits" | "habit_completions" | "biomarker_readings" | "monitored_conditions" | "fasting_settings" | "fasting_days" | "medications" | "medication_intakes" | "product_scans" | "food_logs" | "saved_products" | "allergy_cards" | "nutrition_eaters" | "medical_documents";
+export type SyncTableName = LogTableName | "habits" | "habit_completions" | "biomarker_readings" | "monitored_conditions" | "fasting_settings" | "fasting_days" | "medications" | "medication_intakes" | "product_scans" | "food_logs" | "saved_products" | "allergy_cards" | "nutrition_eaters" | "medical_documents" | "achievements";
 
 export interface OutboxEntry {
   id?: number;
@@ -272,6 +286,7 @@ type ArtaDB = Dexie & {
   nutrition_eaters: EntityTable<LocalNutritionEater, "id">;
   medical_documents: EntityTable<LocalMedicalDocument, "id">;
   family_members: EntityTable<LocalFamilyMember, "id">;
+  achievements: EntityTable<LocalAchievement, "id">;
   outbox: EntityTable<OutboxEntry, "id">;
   meta: EntityTable<MetaEntry, "key">;
 };
@@ -334,6 +349,10 @@ db.version(11).stores({
 // v12 (Fase 6): Family Health — roster anggota keluarga (lokal; sync profiles di FM-2)
 db.version(12).stores({
   family_members: "id, relation",
+});
+// v13 (Fase 6 · GM-2): Gamification — event log achievement (badge + misi harian)
+db.version(13).stores({
+  achievements: "id, profileId, [profileId+kind]",
 });
 
 /** Awal hari lokal perangkat (ISO) — batas "hari ini" untuk skor & dashboard. */

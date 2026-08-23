@@ -1,17 +1,19 @@
 "use client";
+import { useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import { useToast } from "@arta/design-system";
 import {
-  computeXp, levelForXp, earnedBadges, missionStatus, missionBonusXp,
+  computeXp, levelForXp, earnedBadges, missionStatus, bankedXp,
   BADGES, XP_RULES, type PlayerActivity, type TodayCounts,
 } from "@arta/core";
-import { playerActivity, todayCounts } from "@/lib/gamification";
+import { playerActivity, todayCounts, persistedAchievements, grantAchievements } from "@/lib/gamification";
 import { db } from "@/lib/db";
 
 /**
- * Gamification (Fase 6 · GM-1). Level/XP + badge + misi harian — DITURUNKAN dari
- * aktivitas yang sudah dicatat (deterministik, tak bisa "curang"). Reward untuk
- * perilaku sehat, tak menghukum ketiadaan data. Persistensi (player_stats/
- * achievements) menyusul GM-2. Di balik flag NEXT_PUBLIC_FEATURE_GAMIFICATION.
+ * Gamification (Fase 6 · GM-1/GM-2). Level/XP + badge + misi harian — DITURUNKAN dari
+ * aktivitas (deterministik, tak bisa "curang") + PERSISTEN (GM-2): badge dicatat saat
+ * diraih, bonus misi DIBANK per hari → XP bertahan lintas hari & perangkat. Reward untuk
+ * perilaku sehat, tak menghukum ketiadaan data. Di balik flag NEXT_PUBLIC_FEATURE_GAMIFICATION.
  */
 
 const EMPTY_ACT: PlayerActivity = {
@@ -19,8 +21,13 @@ const EMPTY_ACT: PlayerActivity = {
   activityLogs: 0, moodLogs: 0, weightLogs: 0, biomarkerReadings: 0, foodLogs: 0, productScans: 0,
 };
 const EMPTY_TODAY: TodayCounts = { logs: 0, hydration: 0, habits: 0 };
+const todayKey = (): string => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 export function GamificationCard() {
+  const { show } = useToast();
   // liveQuery menonton semua tabel sumber → level/misi ikut naik begitu ada catatan baru.
   const dep = useLiveQuery(async () => {
     const c = await Promise.all([
@@ -31,12 +38,26 @@ export function GamificationCard() {
   }, []);
   const activity = useLiveQuery(() => playerActivity(), [dep]) ?? EMPTY_ACT;
   const today = useLiveQuery(() => todayCounts(), [dep]) ?? EMPTY_TODAY;
+  const persisted = useLiveQuery(() => persistedAchievements(), [dep]) ?? [];
 
-  const baseXp = computeXp(activity);
-  const bonus = missionBonusXp(today);
-  const xp = baseXp + bonus;
+  // Catat reward baru (badge/misi) di EFEK — bukan di liveQuery (hindari ReadOnlyError).
+  useEffect(() => {
+    void grantAchievements().then((newBadges) => {
+      for (const key of newBadges) {
+        const b = BADGES.find((x) => x.key === key);
+        if (b) show({ message: `${b.icon} Lencana baru: ${b.label}!` });
+      }
+    });
+  }, [dep, today.logs, today.hydration, today.habits, show]);
+
+  const banked = bankedXp(persisted);
+  const bankedToday = persisted
+    .filter((r) => r.kind === "mission" && r.day === todayKey())
+    .reduce((s, r) => s + r.xp, 0);
+  const xp = computeXp(activity) + banked;
   const lv = levelForXp(xp);
-  const earned = new Set(earnedBadges(activity).map((b) => b.key));
+  const earnedDate = new Map(persisted.filter((r) => r.kind === "badge").map((r) => [r.key, r.earnedAt]));
+  const earned = new Set([...earnedBadges(activity).map((b) => b.key), ...earnedDate.keys()]);
   const missions = missionStatus(today);
   const missionsDone = missions.filter((m) => m.done).length;
 
@@ -61,7 +82,7 @@ export function GamificationCard() {
       {/* Misi harian */}
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <p style={sectionLabel}>Misi hari ini · {missionsDone}/{missions.length} tuntas
-          {bonus > 0 && <span style={{ color: "var(--ah-score-excellent)", marginLeft: 6 }}>+{bonus} XP</span>}
+          {bankedToday > 0 && <span style={{ color: "var(--ah-score-excellent)", marginLeft: 6 }}>+{bankedToday} XP</span>}
         </p>
         {missions.map(({ mission, current, done }) => (
           <div key={mission.key} style={missionRow}>
@@ -85,8 +106,10 @@ export function GamificationCard() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(64px, 1fr))", gap: 6 }}>
           {BADGES.map((b) => {
             const has = earned.has(b.key);
+            const on = earnedDate.get(b.key);
+            const tip = `${b.label} — ${b.desc}${on ? ` · diraih ${new Date(on).toLocaleDateString("id-ID")}` : ""}`;
             return (
-              <div key={b.key} title={`${b.label} — ${b.desc}`} style={{
+              <div key={b.key} title={tip} style={{
                 display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "8px 4px",
                 borderRadius: "var(--ah-r-inner)", background: has ? "rgba(34,211,238,0.12)" : "var(--ah-surface-2)",
                 border: has ? "1.5px solid var(--ah-cyan, #22D3EE)" : "1px solid var(--ah-border)",
