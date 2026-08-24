@@ -25,3 +25,4 @@ export * from "./gamification.ts";
 export * from "./early-warning.ts";
 export * from "./rppg.ts";
 export * from "./consultation-report.ts";
+export * from "./what-if.ts";
