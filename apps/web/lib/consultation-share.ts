@@ -20,10 +20,11 @@ export type ShareResult =
   | { ok: true; link: ShareLink }
   | { ok: false; message: string };
 
-/** Buat link berbagi (default TTL 45 menit). */
-export async function createShareLink(report: ConsultationReport, ttlMinutes = 45): Promise<ShareResult> {
+/** Buat link berbagi (default TTL 45 menit). `subjectId` = profil subjek laporan
+ *  (default profil aktif; MK-4: profileId anggota keluarga — tetap milik akun → RLS lolos). */
+export async function createShareLink(report: ConsultationReport, ttlMinutes = 45, subjectId?: string): Promise<ShareResult> {
   const supabase = getSupabase();
-  const profileId = await getActiveProfileId();
+  const profileId = subjectId ?? await getActiveProfileId();
   const online = typeof navigator === "undefined" || navigator.onLine;
   if (!supabase || profileId === LOCAL_PROFILE_ID || !online) {
     return { ok: false, message: "Berbagi link belum aktif di sesi ini (perlu login & online). Sementara pakai Cetak/PDF." };

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  summarizeSeries, adherencePct, buildConsultationReport,
+  summarizeSeries, adherencePct, buildConsultationReport, filterReport, narrativeSummary,
   CONSULTATION_DISCLAIMER, type ConsultationReportInput,
 } from "../consultation-report.ts";
 
@@ -89,5 +89,47 @@ describe("buildConsultationReport", () => {
   it("lifestyle berisi bila ada satu field", () => {
     const r = buildConsultationReport({ ...emptyInput(), lifestyle: { sleepAvgH: 6.5 } });
     expect(r.sections).toEqual(["lifestyle"]);
+  });
+});
+
+const richReport = () => buildConsultationReport({
+  ...emptyInput(),
+  biomarkers: [
+    { key: "bp", label: "Tekanan darah", unit: "mmHg", latestValue: "150/95", latestAtISO: "2026-08-20",
+      summary: { count: 5, latest: 150, latestAtISO: "2026-08-20", min: 135, max: 150, avg: 143, direction: "rising" } },
+  ],
+  warnings: [{ label: "Berat badan", text: "Berat badan tren naik", severity: "watch" }],
+  medications: [{ name: "Amlodipin", schedule: "08:00", adherencePct: 80 }],
+});
+
+describe("filterReport (MK-3)", () => {
+  it("mematikan bagian → dikosongkan & sections diperbarui", () => {
+    const full = richReport();
+    expect(full.sections).toEqual(["biomarkers", "warnings", "medications"]);
+    const filtered = filterReport(full, {
+      biomarkers: true, warnings: false, medications: false, lifestyle: false, nutrition: false, documents: false,
+    });
+    expect(filtered.sections).toEqual(["biomarkers"]);
+    expect(filtered.warnings).toEqual([]);
+    expect(filtered.medications).toEqual([]);
+  });
+  it("semua mati → isEmpty", () => {
+    const filtered = filterReport(richReport(), {
+      biomarkers: false, warnings: false, medications: false, lifestyle: false, nutrition: false, documents: false,
+    });
+    expect(filtered.isEmpty).toBe(true);
+  });
+});
+
+describe("narrativeSummary (MK-3)", () => {
+  it("kosong → pesan netral", () => {
+    expect(narrativeSummary(buildConsultationReport(emptyInput()))).toContain("Belum ada data");
+  });
+  it("rekap faktual + arah tren + kepatuhan + ajakan konfirmasi", () => {
+    const s = narrativeSummary(richReport());
+    expect(s).toContain("90 hari");
+    expect(s).toContain("cenderung naik");
+    expect(s).toContain("80%");
+    expect(s).toContain("tenaga kesehatan");
   });
 });
