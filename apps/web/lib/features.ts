@@ -95,6 +95,15 @@ export const featureConsultation = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_CONSULTATION === "1";
 
 /**
+ * Simulasi "Bagaimana Jika" (V3-2). Default OFF. Proyeksi Health Score bila kebiasaan
+ * berubah (tidur/hidrasi/langkah/olahraga) — DETERMINISTIK (reuse engine skor), memotivasi,
+ * bukan janji medis. Tanpa tabel baru (derive baseline dari Dexie).
+ * Dev: set NEXT_PUBLIC_FEATURE_WHATIF=1 di .env.local.
+ */
+export const featureWhatIf = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_WHATIF === "1";
+
+/**
  * Cek Nadi via kamera / rPPG (Fase 6 #3). Default OFF — SPIKE/PoC. Estimasi denyut
  * (BPM) dari ujung jari + flash, diproses on-device (video tak diunggah). BUKAN alat
  * medis. Flag baru nyala setelah gerbang akurasi + review medis (docs/addendum-rppg.md §7).
