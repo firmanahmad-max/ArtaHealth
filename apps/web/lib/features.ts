@@ -104,6 +104,15 @@ export const featureWhatIf = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_WHATIF === "1";
 
 /**
+ * Laporan Bulanan + korelasi lintas-metrik (V3-3). Default OFF. Cari pola antar-metrik
+ * (tidur↔mood, dll) via Pearson DETERMINISTIK + rata-rata bulanan — POLA, bukan sebab-akibat,
+ * bukan diagnosis. Tanpa tabel baru (derive dari Dexie).
+ * Dev: set NEXT_PUBLIC_FEATURE_MONTHLY=1 di .env.local.
+ */
+export const featureMonthlyInsight = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_MONTHLY === "1";
+
+/**
  * Cek Nadi via kamera / rPPG (Fase 6 #3). Default OFF — SPIKE/PoC. Estimasi denyut
  * (BPM) dari ujung jari + flash, diproses on-device (video tak diunggah). BUKAN alat
  * medis. Flag baru nyala setelah gerbang akurasi + review medis (docs/addendum-rppg.md §7).
