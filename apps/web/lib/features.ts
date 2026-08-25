@@ -121,6 +121,15 @@ export const featureImmunization = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_IMMUNIZATION === "1";
 
 /**
+ * Kesehatan Siklus / menstruasi (V3-5). Default OFF. Prediksi siklus/fase/haid berikutnya/
+ * jendela subur DETERMINISTIK dari riwayat haid. Data sensitif → RLS per profil. BUKAN alat
+ * kontrasepsi/diagnosis. Butuh migration 0025 (cycle_logs) db-push sebelum nyala.
+ * Dev: set NEXT_PUBLIC_FEATURE_CYCLE=1 di .env.local.
+ */
+export const featureCycle = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_CYCLE === "1";
+
+/**
  * Cek Nadi via kamera / rPPG (Fase 6 #3). Default OFF — SPIKE/PoC. Estimasi denyut
  * (BPM) dari ujung jari + flash, diproses on-device (video tak diunggah). BUKAN alat
  * medis. Flag baru nyala setelah gerbang akurasi + review medis (docs/addendum-rppg.md §7).
