@@ -113,6 +113,14 @@ export const featureMonthlyInsight = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_MONTHLY === "1";
 
 /**
+ * Jadwal Imunisasi Anak (V3-6). Default OFF. Status vaksin (sudah/jatuh tempo/akan datang/
+ * terlambat) DITERMINISTIK dari tanggal lahir + jadwal IDAI. Non-medis. Jadwal = KERANGKA,
+ * WAJIB verifikasi vs IDAI sebelum flag nyala. Dev: set NEXT_PUBLIC_FEATURE_IMMUNIZATION=1.
+ */
+export const featureImmunization = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_IMMUNIZATION === "1";
+
+/**
  * Cek Nadi via kamera / rPPG (Fase 6 #3). Default OFF — SPIKE/PoC. Estimasi denyut
  * (BPM) dari ujung jari + flash, diproses on-device (video tak diunggah). BUKAN alat
  * medis. Flag baru nyala setelah gerbang akurasi + review medis (docs/addendum-rppg.md §7).
