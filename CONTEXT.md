@@ -101,6 +101,7 @@ Sprint 5–6: AI Gateway + prompt registry + Safety Guard + Daily Insight + AI C
 | `release-checklist-ramadan.md` | Checklist rilis Fase 3 Ramadan: deploy send-reminders + nyalakan flag + smoke test + rollback (gerbang §10 lewat) |
 | `roadmap-v3.md` | Rancangan V3/Fase 7: urutan fitur + gerbang + keputusan PWA-vs-native (wearable) + deep-dive V3-1 Mode Konsultasi QR/Laporan Dokter |
 | `addendum-cek-klaim.md` | Desain + GERBANG konten V3-4 Cek Klaim anti-hoaks: arsitektur berpagar (gerbang keamanan deterministik → AI berpagar + sumber terkurasi), non-vonis/non-medis, gerbang review sebelum flag |
+| `addendum-wearable.md` | Desain teknis V3-7 Wearable/Health Connect: keputusan Capacitor (bungkus PWA), alur data native→Dexie→sync, tabel `wearable_samples`+dedup, increment WR-0 spike..WR-5, gerbang store/device/privasi |
 | `prototypes/*.jsx` | 2 prototipe React (referensi UI & interaksi) |
 | `clinical-refs/` | PDF guideline resmi (diisi saat verifikasi ambang) |
 
