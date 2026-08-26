@@ -130,6 +130,15 @@ export const featureCycle = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_CYCLE === "1";
 
 /**
+ * Cek Klaim Kesehatan / anti-hoaks (V3-4). Default OFF. Gerbang keamanan deterministik
+ * (CK-1) + penilaian AI berpagar (CK-2, Edge Function claim-check) + sumber terkurasi.
+ * Non-vonis, non-medis. GERBANG KONTEN (kurasi sumber + review medis) wajib lewat +
+ * deploy claim-check sebelum flag nyala. Dev: set NEXT_PUBLIC_FEATURE_CEK_KLAIM=1.
+ */
+export const featureCekKlaim = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_CEK_KLAIM === "1";
+
+/**
  * Cek Nadi via kamera / rPPG (Fase 6 #3). Default OFF — SPIKE/PoC. Estimasi denyut
  * (BPM) dari ujung jari + flash, diproses on-device (video tak diunggah). BUKAN alat
  * medis. Flag baru nyala setelah gerbang akurasi + review medis (docs/addendum-rppg.md §7).

@@ -30,3 +30,4 @@ export * from "./correlation.ts";
 export * from "./claim-safety.ts";
 export * from "./immunization.ts";
 export * from "./cycle.ts";
+export * from "./claim-check.ts";

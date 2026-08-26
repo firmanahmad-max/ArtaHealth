@@ -36,7 +36,8 @@ import { WhatIfCard } from "@/components/WhatIfCard";
 import { MonthlyInsightCard } from "@/components/MonthlyInsightCard";
 import { ImmunizationCard } from "@/components/ImmunizationCard";
 import { CycleCard } from "@/components/CycleCard";
-import { featureBiomarker, featureRamadan, featureMedication, featureNutrition, featureFoodDiary, featureVault, featureFamily, featureGamification, featureEarlyWarning, featureRppg, featureConsultation, featureWhatIf, featureMonthlyInsight, featureImmunization, featureCycle } from "@/lib/features";
+import { ClaimCheckCard } from "@/components/ClaimCheckCard";
+import { featureBiomarker, featureRamadan, featureMedication, featureNutrition, featureFoodDiary, featureVault, featureFamily, featureGamification, featureEarlyWarning, featureRppg, featureConsultation, featureWhatIf, featureMonthlyInsight, featureImmunization, featureCycle, featureCekKlaim } from "@/lib/features";
 import { isScheduledOn, isoWeekdayOf } from "@arta/core";
 import { todayKey } from "@/lib/habits";
 import { isFastingToday } from "@/lib/fasting";
@@ -269,6 +270,8 @@ export default function Dashboard() {
         {featureImmunization() && <ImmunizationCard />}
 
         {featureCycle() && <CycleCard />}
+
+        {featureCekKlaim() && <ClaimCheckCard />}
 
         {featureVault() && <VaultCard />}
 

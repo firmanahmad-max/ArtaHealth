@@ -32,5 +32,5 @@ jobs:
       # Edge Function di-typecheck dengan Deno (tsc tidak mengenali runtime-nya)
       - uses: denoland/setup-deno@v2
         with: { deno-version: v2.x }
-      - run: deno check ai-gateway/index.ts daily-score/index.ts send-reminders/index.ts nutrition-scan/index.ts food-scan/index.ts vault-scan/index.ts consultation-share/index.ts consultation-view/index.ts
+      - run: deno check ai-gateway/index.ts daily-score/index.ts send-reminders/index.ts nutrition-scan/index.ts food-scan/index.ts vault-scan/index.ts consultation-share/index.ts consultation-view/index.ts claim-check/index.ts
         working-directory: supabase/functions
