@@ -1,8 +1,10 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { EmptyState } from "@arta/design-system";
-import { AI_DISCLAIMER, FREE_CHAT_QUOTA_PER_DAY } from "@arta/core";
+import { AI_DISCLAIMER, FREE_CHAT_QUOTA_PER_DAY, detectClaimQuestion } from "@arta/core";
 import { sendChat, type ChatResult } from "@/lib/ai";
+import { featureCekKlaim } from "@/lib/features";
 import { QuickLogSheet } from "@/components/QuickLogSheet";
 import { AppNav } from "@/components/AppNav";
 
@@ -11,6 +13,7 @@ interface Bubble {
   role: "user" | "assistant";
   text: string;
   redFlag?: boolean;
+  hint?: "cek_klaim";
 }
 
 const SUGGESTIONS = [
@@ -35,7 +38,13 @@ export default function ChatPage() {
     const trimmed = text.trim();
     if (!trimmed || busy) return;
     setInput("");
-    setMessages((m) => [...m, { id: crypto.randomUUID(), role: "user", text: trimmed }]);
+    // CK-3: bila pesan terdengar seperti minta verifikasi klaim → tawarkan Cek Klaim (deterministik, tak makan kuota).
+    const offerCekKlaim = featureCekKlaim() && detectClaimQuestion(trimmed);
+    setMessages((m) => [
+      ...m,
+      { id: crypto.randomUUID(), role: "user", text: trimmed },
+      ...(offerCekKlaim ? [{ id: crypto.randomUUID(), role: "assistant" as const, text: "", hint: "cek_klaim" as const }] : []),
+    ]);
     setBusy(true);
     let result: ChatResult;
     try {
@@ -90,6 +99,19 @@ export default function ChatPage() {
         ) : (
           <div role="log" aria-live="polite" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {messages.map((m) => (
+              m.hint === "cek_klaim" ? (
+                <Link
+                  key={m.id} href="/"
+                  style={{
+                    alignSelf: "flex-start", maxWidth: "86%", textDecoration: "none",
+                    background: "var(--ah-surface-2)", border: "1px dashed var(--ah-cyan, #22D3EE)",
+                    borderRadius: "var(--ah-r-inner)", padding: "10px 12px",
+                    fontSize: 12.5, lineHeight: 1.5, color: "var(--ah-text-secondary)",
+                  }}
+                >
+                  🔎 Ingin memeriksa kebenaran klaim ini? Buka <b style={{ color: "var(--ah-cyan, #22D3EE)" }}>Cek Klaim</b> di Beranda — dinilai dengan sumber resmi, bukan vonis.
+                </Link>
+              ) : (
               <div
                 key={m.id}
                 style={{
@@ -112,6 +134,7 @@ export default function ChatPage() {
                 )}
                 {m.text}
               </div>
+              )
             ))}
             {busy && (
               <div style={{ alignSelf: "flex-start", fontSize: 12, color: "var(--ah-text-tertiary)", padding: "6px 4px" }}>
