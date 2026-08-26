@@ -60,6 +60,21 @@ export const CLAIM_CHECK_DISCLAIMER =
   "Penilaian ini bantuan memilah informasi, bukan vonis mutlak & bukan nasihat medis. " +
   "Untuk keputusan kesehatan pribadi, rujuk sumber resmi & konsultasikan dengan tenaga kesehatan.";
 
+// ===== CK-3: deteksi niat "verifikasi klaim" di chat (sinergi ArtaBot) =====
+
+const CLAIM_QUESTION_CUES = [
+  "benarkah", "betulkah", "apakah benar", "apa benar", "apa betul", "bener nggak", "bener ngga",
+  "bener gak", "bener ga", "benar nggak", "benar gak", "valid nggak", "valid gak",
+  "hoaks", "hoax", "mitos atau fakta", "fakta atau mitos", "beneran", "katanya",
+];
+
+/** Deteksi DETERMINISTIK apakah pesan pengguna terdengar seperti minta verifikasi klaim
+ *  ("benarkah…", "hoaks?", "mitos atau fakta"). Dipakai chat untuk menawarkan Cek Klaim. */
+export function detectClaimQuestion(text: string): boolean {
+  const norm = ` ${(text ?? "").toLowerCase().replace(/[^a-z0-9%]+/g, " ").replace(/\s+/g, " ").trim()} `;
+  return CLAIM_QUESTION_CUES.some((c) => norm.includes(c.includes(" ") ? c : ` ${c} `));
+}
+
 /** Fallback deterministik saat AI gagal/tak valid — tak pernah menebak vonis. */
 export function fallbackAssessment(): ClaimAssessment {
   return {
