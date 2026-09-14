@@ -39,7 +39,8 @@ import { CycleCard } from "@/components/CycleCard";
 import { ClaimCheckCard } from "@/components/ClaimCheckCard";
 import { RadarSehatCard } from "@/components/RadarSehatCard";
 import { WearableCard } from "@/components/WearableCard";
-import { featureBiomarker, featureRamadan, featureMedication, featureNutrition, featureFoodDiary, featureVault, featureFamily, featureGamification, featureEarlyWarning, featureRppg, featureConsultation, featureWhatIf, featureMonthlyInsight, featureImmunization, featureCycle, featureCekKlaim, featureRadar, featureWearable } from "@/lib/features";
+import { SatuSehatCard } from "@/components/SatuSehatCard";
+import { featureBiomarker, featureRamadan, featureMedication, featureNutrition, featureFoodDiary, featureVault, featureFamily, featureGamification, featureEarlyWarning, featureRppg, featureConsultation, featureWhatIf, featureMonthlyInsight, featureImmunization, featureCycle, featureCekKlaim, featureRadar, featureWearable, featureSatuSehat } from "@/lib/features";
 import { isScheduledOn, isoWeekdayOf } from "@arta/core";
 import { todayKey } from "@/lib/habits";
 import { isFastingToday } from "@/lib/fasting";
@@ -278,6 +279,8 @@ export default function Dashboard() {
         {featureRadar() && <RadarSehatCard />}
 
         {featureWearable() && <WearableCard />}
+
+        {featureSatuSehat() && <SatuSehatCard />}
 
         {featureVault() && <VaultCard />}
 
