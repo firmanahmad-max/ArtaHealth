@@ -7,7 +7,7 @@ import {
   type LocalMedication, type LocalMedicationIntake,
   type LocalProductScan, type LocalFoodLog, type LocalSavedProduct, type LocalAllergyCard,
   type LocalNutritionEater, type LocalMedicalDocument, type LocalFamilyMember,
-  type LocalAchievement, type LocalCycleLog,
+  type LocalAchievement, type LocalCycleLog, type LocalWearableSample,
 } from "./db";
 import { getSupabase, type PrimaryProfile } from "./supabase";
 import { featureFamily, featureGamification } from "./features";
@@ -48,7 +48,7 @@ type AnyLocalRow =
   | LocalHabit | LocalHabitCompletion | LocalBiomarkerReading | LocalMonitoredCondition
   | LocalFastingSettings | LocalFastingDay | LocalMedication | LocalMedicationIntake
   | LocalProductScan | LocalFoodLog | LocalSavedProduct | LocalAllergyCard | LocalNutritionEater
-  | LocalMedicalDocument | LocalAchievement | LocalCycleLog;
+  | LocalMedicalDocument | LocalAchievement | LocalCycleLog | LocalWearableSample;
 
 /** habits & monitored_conditions ber-idempoten lewat PK id (uuid client), bukan client_id. */
 const CONFLICT_KEY: Record<SyncTableName, string> = {
@@ -73,6 +73,7 @@ const CONFLICT_KEY: Record<SyncTableName, string> = {
   medical_documents: "id",
   achievements: "id",
   cycle_logs: "id",
+  wearable_samples: "id",
 };
 
 function toServerRow(table: SyncTableName, row: AnyLocalRow): Record<string, unknown> {
@@ -198,6 +199,14 @@ function toServerRow(table: SyncTableName, row: AnyLocalRow): Record<string, unk
     return {
       id: r.id, profile_id: r.profileId, start_date: r.startDate,
       length_days: r.lengthDays ?? null, note: r.note ?? null, deleted_at: r.deletedAt,
+    };
+  }
+  if (table === "wearable_samples") {
+    const r = row as LocalWearableSample;
+    return {
+      id: r.id, profile_id: r.profileId, type: r.type, value: r.value, unit: r.unit,
+      start_at: r.startAt, end_at: r.endAt ?? null, source: r.source, external_id: r.externalId,
+      deleted_at: r.deletedAt,
     };
   }
   const base = { profile_id: (row as { profileId: string }).profileId, client_id: (row as { clientId: string }).clientId, deleted_at: (row as { deletedAt: string | null }).deletedAt };
@@ -396,6 +405,16 @@ function fromServerRow(table: SyncTableName, r: ServerRow): AnyLocalRow {
       updatedAt: r.updated_at, deletedAt: (r.deleted_at as string | null) ?? null,
     } as LocalCycleLog;
   }
+  if (table === "wearable_samples") {
+    return {
+      id: r.id, profileId: r.profile_id, type: (r.type as LocalWearableSample["type"]) ?? "steps",
+      value: (r.value as number) ?? 0, unit: (r.unit as string) ?? "count",
+      startAt: (r.start_at as string) ?? "", endAt: (r.end_at as string | null) ?? null,
+      source: (r.source as LocalWearableSample["source"]) ?? "health_connect",
+      externalId: (r.external_id as string) ?? "",
+      updatedAt: r.updated_at, deletedAt: (r.deleted_at as string | null) ?? null,
+    } as LocalWearableSample;
+  }
   const base = {
     clientId: r.client_id as string,
     profileId: r.profile_id as string,
@@ -428,6 +447,7 @@ const SYNC_TABLES: SyncTableName[] = [
   "saved_products", "allergy_cards", "nutrition_eaters",
   "medical_documents", // FK biomarker.vault_doc_id dijaga di sisi PUSH (outbox: doc di-enqueue sebelum reading)
   "cycle_logs",
+  "wearable_samples", // ditulis native (WR-2); di web kosong → pull no-op tanpa regresi
 ];
 const PULL_PAGE = 500;
 let pulling = false;
@@ -497,7 +517,8 @@ async function pullTable(table: SyncTableName, profileId: string, cursorKey = `p
           table === "medications" || table === "medication_intakes" ||
           table === "product_scans" || table === "food_logs" ||
           table === "saved_products" || table === "nutrition_eaters" ||
-          table === "medical_documents" || table === "achievements" || table === "cycle_logs") return r.id as string;
+          table === "medical_documents" || table === "achievements" || table === "cycle_logs" ||
+          table === "wearable_samples") return r.id as string;
       if (table === "fasting_settings" || table === "allergy_cards") return r.profile_id as string; // kunci Dexie = profileId
       if (table === "fasting_days") return `${r.profile_id}:${r.date}`;      // kunci Dexie = `${profileId}:${date}`
       return r.client_id as string;
