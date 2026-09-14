@@ -147,6 +147,14 @@ export const featureQuickLog = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_QUICKLOG === "1";
 
 /**
+ * Radar Sehat — kualitas udara (backlog). Default OFF. AQI lokasi via Open-Meteo (gratis,
+ * tanpa key) → klasifikasi EPA deterministik + saran. Non-medis. Tanpa migrasi/backend.
+ * Dev: set NEXT_PUBLIC_FEATURE_RADAR=1 di .env.local.
+ */
+export const featureRadar = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_RADAR === "1";
+
+/**
  * Cek Nadi via kamera / rPPG (Fase 6 #3). Default OFF — SPIKE/PoC. Estimasi denyut
  * (BPM) dari ujung jari + flash, diproses on-device (video tak diunggah). BUKAN alat
  * medis. Flag baru nyala setelah gerbang akurasi + review medis (docs/addendum-rppg.md §7).
