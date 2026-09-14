@@ -32,3 +32,4 @@ export * from "./immunization.ts";
 export * from "./cycle.ts";
 export * from "./claim-check.ts";
 export * from "./quick-log-parse.ts";
+export * from "./air-quality.ts";
