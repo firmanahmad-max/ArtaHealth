@@ -2,9 +2,10 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { EmptyState } from "@arta/design-system";
-import { AI_DISCLAIMER, FREE_CHAT_QUOTA_PER_DAY, detectClaimQuestion } from "@arta/core";
+import { AI_DISCLAIMER, FREE_CHAT_QUOTA_PER_DAY, detectClaimQuestion, parseQuickLog } from "@arta/core";
 import { sendChat, type ChatResult } from "@/lib/ai";
-import { featureCekKlaim } from "@/lib/features";
+import { applyQuickLog } from "@/lib/quick-log-apply";
+import { featureCekKlaim, featureQuickLog } from "@/lib/features";
 import { QuickLogSheet } from "@/components/QuickLogSheet";
 import { AppNav } from "@/components/AppNav";
 
@@ -40,11 +41,22 @@ export default function ChatPage() {
     setInput("");
     // CK-3: bila pesan terdengar seperti minta verifikasi klaim → tawarkan Cek Klaim (deterministik, tak makan kuota).
     const offerCekKlaim = featureCekKlaim() && detectClaimQuestion(trimmed);
+    // ArtaBot quick-log: perintah pencatatan (deterministik) → catat, jangan panggil AI.
+    const qlIntent = featureQuickLog() ? parseQuickLog(trimmed) : null;
     setMessages((m) => [
       ...m,
       { id: crypto.randomUUID(), role: "user", text: trimmed },
       ...(offerCekKlaim ? [{ id: crypto.randomUUID(), role: "assistant" as const, text: "", hint: "cek_klaim" as const }] : []),
     ]);
+    if (qlIntent) {
+      let ok = true;
+      try { await applyQuickLog(qlIntent); } catch { ok = false; }
+      setMessages((m) => [...m, {
+        id: crypto.randomUUID(), role: "assistant",
+        text: ok ? `✅ Tercatat: ${qlIntent.label}. Lihat di Beranda.` : "Maaf, gagal mencatat. Coba lewat tombol Catat.",
+      }]);
+      return; // tak memanggil AI, tak memotong kuota
+    }
     setBusy(true);
     let result: ChatResult;
     try {
