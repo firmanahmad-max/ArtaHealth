@@ -34,3 +34,4 @@ export * from "./claim-check.ts";
 export * from "./quick-log-parse.ts";
 export * from "./air-quality.ts";
 export * from "./spoken-numbers.ts";
+export * from "./wearable.ts";

@@ -163,6 +163,16 @@ export const featureVoice = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_VOICE === "1";
 
 /**
+ * Wearable / Health Connect (V3-7 · WR-1). Default OFF. Data pasif perangkat (langkah/detak/
+ * tidur/energi/berat/SpO₂) → engine dedup+rollup DETERMINISTIK (@arta/core) → Dexie/sync T1.
+ * WR-1 = fondasi data yang INERT di web (tak ada pengambilan native). Native Health Connect/
+ * HealthKit = WR-2 (butuh Capacitor + device) — flag TAK boleh nyala sebelum gerbang WR-0 lulus
+ * (docs/addendum-wearable.md §8). Dev: set NEXT_PUBLIC_FEATURE_WEARABLE=1 di .env.local.
+ */
+export const featureWearable = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_WEARABLE === "1";
+
+/**
  * Cek Nadi via kamera / rPPG (Fase 6 #3). Default OFF — SPIKE/PoC. Estimasi denyut
  * (BPM) dari ujung jari + flash, diproses on-device (video tak diunggah). BUKAN alat
  * medis. Flag baru nyala setelah gerbang akurasi + review medis (docs/addendum-rppg.md §7).

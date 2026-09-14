@@ -115,6 +115,25 @@ export interface LocalCycleLog {
   deletedAt: string | null;
 }
 
+/**
+ * Sampel wearable / Health Connect (V3-7 · WR-1). id = `${source}:${externalId}` → idempoten
+ * & men-dedup sampel platform. Ber-sumber (provenance); TAK mengubah log manual. Data T1.
+ * Ditulis oleh native (WR-2); di web tabel ada tapi kosong (inert). Idempoten via PK id.
+ */
+export interface LocalWearableSample {
+  id: string;                   // `${source}:${externalId}`
+  profileId: string;
+  type: "steps" | "heart_rate" | "sleep" | "active_energy" | "weight" | "spo2";
+  value: number;
+  unit: string;
+  startAt: string;              // ISO
+  endAt?: string | null;        // ISO
+  source: "health_connect" | "healthkit";
+  externalId: string;
+  updatedAt?: string;
+  deletedAt: string | null;
+}
+
 /** Kondisi yang dipantau pengguna (Fase 2). Idempoten via PK id (pola habits). */
 export interface LocalMonitoredCondition {
   id: string;
@@ -264,7 +283,7 @@ export interface LocalAchievement {
 }
 
 export type LogTableName = "hydration_logs" | "sleep_logs" | "activity_logs" | "mood_logs" | "weight_logs";
-export type SyncTableName = LogTableName | "habits" | "habit_completions" | "biomarker_readings" | "monitored_conditions" | "fasting_settings" | "fasting_days" | "medications" | "medication_intakes" | "product_scans" | "food_logs" | "saved_products" | "allergy_cards" | "nutrition_eaters" | "medical_documents" | "achievements" | "cycle_logs";
+export type SyncTableName = LogTableName | "habits" | "habit_completions" | "biomarker_readings" | "monitored_conditions" | "fasting_settings" | "fasting_days" | "medications" | "medication_intakes" | "product_scans" | "food_logs" | "saved_products" | "allergy_cards" | "nutrition_eaters" | "medical_documents" | "achievements" | "cycle_logs" | "wearable_samples";
 
 export interface OutboxEntry {
   id?: number;
@@ -297,6 +316,7 @@ type ArtaDB = Dexie & {
   nutrition_eaters: EntityTable<LocalNutritionEater, "id">;
   medical_documents: EntityTable<LocalMedicalDocument, "id">;
   cycle_logs: EntityTable<LocalCycleLog, "id">;
+  wearable_samples: EntityTable<LocalWearableSample, "id">;
   family_members: EntityTable<LocalFamilyMember, "id">;
   achievements: EntityTable<LocalAchievement, "id">;
   outbox: EntityTable<OutboxEntry, "id">;
@@ -369,6 +389,10 @@ db.version(13).stores({
 // v14 (V3-5): Kesehatan Siklus — catatan mulai haid
 db.version(14).stores({
   cycle_logs: "id, profileId, startDate",
+});
+// v15 (V3-7 · WR-1): Wearable — sampel pasif per (profil,jenis,waktu). Inert di web s/d native.
+db.version(15).stores({
+  wearable_samples: "id, profileId, [profileId+type], startAt",
 });
 
 /** Awal hari lokal perangkat (ISO) — batas "hari ini" untuk skor & dashboard. */
