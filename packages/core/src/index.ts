@@ -37,3 +37,4 @@ export * from "./spoken-numbers.ts";
 export * from "./wearable.ts";
 export * from "./fhir.ts";
 export * from "./product-catalog.ts";
+export * from "./leaderboard.ts";

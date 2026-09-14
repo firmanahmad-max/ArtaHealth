@@ -163,6 +163,16 @@ export const featureVoice = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_VOICE === "1";
 
 /**
+ * Leaderboard (backlog · LB-1). Default OFF. Papan PRIBADI-temporal: poin aktivitas mingguanmu vs
+ * minggu-minggu lalumu (rekor pribadi + momentum) via engine deterministik @arta/core, 100% lokal.
+ * Poin turunan dari aktivitas (XP_RULES), bukan nilai kesehatan. Papan SOSIAL (bandingkan dgn orang
+ * lain) = LB-3 di balik gerbang privasi + backend (docs/addendum-leaderboard.md §3/§6).
+ * Dev: set NEXT_PUBLIC_FEATURE_LEADERBOARD=1 di .env.local.
+ */
+export const featureLeaderboard = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_LEADERBOARD === "1";
+
+/**
  * Katalog Produk Komunal (backlog · KC-1). Default OFF. Cari produk yang pernah dipindai & pakai
  * ulang gizinya tanpa scan ulang (katalog LOKAL dari saved_products via engine deterministik
  * @arta/core: normalisasi identitas + konsensus median + cari). Verdict tetap personal di
