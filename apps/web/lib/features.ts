@@ -155,6 +155,14 @@ export const featureRadar = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_RADAR === "1";
 
 /**
+ * Voice quick-log (backlog). Default OFF. Dikte suara (Web Speech id-ID) → teks → jalur chat
+ * biasa (quick-log/AI). Reuse parseQuickLog + normalizeSpokenNumbers. Butuh featureQuickLog
+ * untuk mencatat. Dev: set NEXT_PUBLIC_FEATURE_VOICE=1 di .env.local.
+ */
+export const featureVoice = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_VOICE === "1";
+
+/**
  * Cek Nadi via kamera / rPPG (Fase 6 #3). Default OFF — SPIKE/PoC. Estimasi denyut
  * (BPM) dari ujung jari + flash, diproses on-device (video tak diunggah). BUKAN alat
  * medis. Flag baru nyala setelah gerbang akurasi + review medis (docs/addendum-rppg.md §7).

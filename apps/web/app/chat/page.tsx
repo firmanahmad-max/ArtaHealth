@@ -2,10 +2,11 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { EmptyState } from "@arta/design-system";
-import { AI_DISCLAIMER, FREE_CHAT_QUOTA_PER_DAY, detectClaimQuestion, parseQuickLog } from "@arta/core";
+import { AI_DISCLAIMER, FREE_CHAT_QUOTA_PER_DAY, detectClaimQuestion, parseQuickLog, normalizeSpokenNumbers } from "@arta/core";
 import { sendChat, type ChatResult } from "@/lib/ai";
 import { applyQuickLog } from "@/lib/quick-log-apply";
-import { featureCekKlaim, featureQuickLog } from "@/lib/features";
+import { speechSupported, startDictation, type Dictation } from "@/lib/voice";
+import { featureCekKlaim, featureQuickLog, featureVoice } from "@/lib/features";
 import { QuickLogSheet } from "@/components/QuickLogSheet";
 import { AppNav } from "@/components/AppNav";
 
@@ -31,7 +32,23 @@ export default function ChatPage() {
   const [used, setUsed] = useState(0);
   const sessionId = useRef<string>("");
   const endRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+  const [listening, setListening] = useState(false);
+  const dictRef = useRef<Dictation | null>(null);
+  const canVoice = mounted && featureVoice() && speechSupported();
 
+  const toggleVoice = () => {
+    if (listening) { dictRef.current?.stop(); return; }
+    setListening(true);
+    dictRef.current = startDictation(
+      (text) => setInput((prev) => (prev.trim() ? `${prev} ${text}` : text)),
+      () => setListening(false),
+      () => setListening(false),
+    );
+    if (!dictRef.current) setListening(false);
+  };
+
+  useEffect(() => { setMounted(true); }, []);
   useEffect(() => { sessionId.current = crypto.randomUUID(); }, []);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, busy]);
 
@@ -42,7 +59,8 @@ export default function ChatPage() {
     // CK-3: bila pesan terdengar seperti minta verifikasi klaim → tawarkan Cek Klaim (deterministik, tak makan kuota).
     const offerCekKlaim = featureCekKlaim() && detectClaimQuestion(trimmed);
     // ArtaBot quick-log: perintah pencatatan (deterministik) → catat, jangan panggil AI.
-    const qlIntent = featureQuickLog() ? parseQuickLog(trimmed) : null;
+    // normalizeSpokenNumbers: dukung angka terucap/kata ("dua gelas" → "2 gelas") dari voice/ketik.
+    const qlIntent = featureQuickLog() ? parseQuickLog(normalizeSpokenNumbers(trimmed)) : null;
     setMessages((m) => [
       ...m,
       { id: crypto.randomUUID(), role: "user", text: trimmed },
@@ -171,10 +189,25 @@ export default function ChatPage() {
           onSubmit={(e) => { e.preventDefault(); void send(input); }}
           style={{ display: "flex", gap: 8 }}
         >
+          {canVoice && (
+            <button
+              type="button" onClick={toggleVoice}
+              aria-label={listening ? "Berhenti mendengarkan" : "Bicara"}
+              aria-pressed={listening}
+              style={{
+                width: 44, height: 44, borderRadius: "var(--ah-r-full)", cursor: "pointer", flexShrink: 0,
+                border: listening ? "1.5px solid var(--ah-score-low)" : "1px solid var(--ah-border)",
+                background: listening ? "rgba(248,113,113,0.14)" : "var(--ah-surface-1)",
+                color: listening ? "var(--ah-score-low)" : "var(--ah-text-secondary)", fontSize: 18,
+              }}
+            >
+              {listening ? "■" : "🎙️"}
+            </button>
+          )}
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Tulis pertanyaan Anda…"
+            placeholder={listening ? "Mendengarkan…" : "Tulis atau ucapkan…"}
             aria-label="Pertanyaan untuk Arta"
             style={{
               flex: 1, minHeight: 44, borderRadius: "var(--ah-r-full)", border: "1px solid var(--ah-border)",
