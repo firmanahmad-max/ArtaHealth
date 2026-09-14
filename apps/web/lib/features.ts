@@ -163,6 +163,16 @@ export const featureVoice = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_VOICE === "1";
 
 /**
+ * SATUSEHAT / Interoperabilitas FHIR (backlog · SS-1). Default OFF. Ekspor data (biomarker/obat)
+ * ke Bundle FHIR R4 (LOINC/UCUM) via engine deterministik @arta/core → unduh berkas .json di
+ * perangkat (OFFLINE, tanpa unggah). Sinkronisasi jaringan SATUSEHAT (SS-2) butuh kredensial
+ * organisasi Kemenkes → INERT sampai itu ada (docs/addendum-satusehat.md §2/§7). Non-medis.
+ * Dev: set NEXT_PUBLIC_FEATURE_SATUSEHAT=1 di .env.local.
+ */
+export const featureSatuSehat = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_SATUSEHAT === "1";
+
+/**
  * Wearable / Health Connect (V3-7 · WR-1). Default OFF. Data pasif perangkat (langkah/detak/
  * tidur/energi/berat/SpO₂) → engine dedup+rollup DETERMINISTIK (@arta/core) → Dexie/sync T1.
  * WR-1 = fondasi data yang INERT di web (tak ada pengambilan native). Native Health Connect/
