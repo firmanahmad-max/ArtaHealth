@@ -139,6 +139,14 @@ export const featureCekKlaim = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_CEK_KLAIM === "1";
 
 /**
+ * ArtaBot quick-log (backlog). Default OFF. Catat via chat ("minum 2 gelas", "tidur 7 jam")
+ * → parser deterministik → tulis ke log yang ada (tak makan kuota AI). Reuse lib/quicklog.
+ * Dev: set NEXT_PUBLIC_FEATURE_QUICKLOG=1 di .env.local.
+ */
+export const featureQuickLog = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_QUICKLOG === "1";
+
+/**
  * Cek Nadi via kamera / rPPG (Fase 6 #3). Default OFF — SPIKE/PoC. Estimasi denyut
  * (BPM) dari ujung jari + flash, diproses on-device (video tak diunggah). BUKAN alat
  * medis. Flag baru nyala setelah gerbang akurasi + review medis (docs/addendum-rppg.md §7).
