@@ -163,6 +163,16 @@ export const featureVoice = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_VOICE === "1";
 
 /**
+ * Katalog Produk Komunal (backlog · KC-1). Default OFF. Cari produk yang pernah dipindai & pakai
+ * ulang gizinya tanpa scan ulang (katalog LOKAL dari saved_products via engine deterministik
+ * @arta/core: normalisasi identitas + konsensus median + cari). Verdict tetap personal di
+ * perangkat. Berbagi komunal (baca/tulis termoderasi) = KC-2 (tunggu gerbang moderasi,
+ * docs/addendum-katalog.md §3/§6). Dev: set NEXT_PUBLIC_FEATURE_CATALOG=1 di .env.local.
+ */
+export const featureCatalog = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_CATALOG === "1";
+
+/**
  * SATUSEHAT / Interoperabilitas FHIR (backlog · SS-1). Default OFF. Ekspor data (biomarker/obat)
  * ke Bundle FHIR R4 (LOINC/UCUM) via engine deterministik @arta/core → unduh berkas .json di
  * perangkat (OFFLINE, tanpa unggah). Sinkronisasi jaringan SATUSEHAT (SS-2) butuh kredensial
