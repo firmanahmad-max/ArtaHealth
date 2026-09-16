@@ -123,7 +123,7 @@ export interface LocalCycleLog {
 export interface LocalWearableSample {
   id: string;                   // `${source}:${externalId}`
   profileId: string;
-  type: "steps" | "heart_rate" | "sleep" | "active_energy" | "weight" | "spo2";
+  type: "steps" | "heart_rate" | "sleep" | "active_energy" | "weight" | "spo2" | "sleep_light" | "sleep_deep" | "sleep_rem";
   value: number;
   unit: string;
   startAt: string;              // ISO

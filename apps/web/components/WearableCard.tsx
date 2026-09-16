@@ -12,6 +12,7 @@ import { useMounted } from "@/lib/useMounted";
 
 const ICON: Record<WearableType, string> = {
   steps: "👟", heart_rate: "❤️", sleep: "😴", active_energy: "🔥", weight: "⚖️", spo2: "🫁",
+  sleep_light: "🌙", sleep_deep: "🛌", sleep_rem: "💤",
 };
 const fmt = (r: DailyRollup): string =>
   `${r.value.toLocaleString("id-ID")}${r.unit && r.unit !== "count" ? ` ${r.unit}` : ""}`;

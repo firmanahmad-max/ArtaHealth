@@ -170,4 +170,22 @@ describe("parseGoogleFitSessionsJson (sesi tidur Takeout)", () => {
     ]));
     expect(samples[0]).toMatchObject({ type: "sleep", value: 480 });
   });
+  it("segment stage → total sleep + rincian light/deep/rem (awake diabaikan)", () => {
+    const { samples } = parseGoogleFitSessionsJson(JSON.stringify({
+      fitnessActivity: "sleep", startTime: "2026-09-01T22:00:00Z", endTime: "2026-09-02T06:00:00Z", // 480 mnt
+      segment: [
+        { fitnessActivity: "sleep.light", startTime: "2026-09-01T22:00:00Z", endTime: "2026-09-01T23:00:00Z" }, // 60
+        { fitnessActivity: "sleep.deep", startTime: "2026-09-01T23:00:00Z", endTime: "2026-09-02T01:00:00Z" },  // 120
+        { fitnessActivity: "sleep.rem", startTime: "2026-09-02T01:00:00Z", endTime: "2026-09-02T02:00:00Z" },   // 60
+        { fitnessActivity: "sleep.awake", startTime: "2026-09-02T02:00:00Z", endTime: "2026-09-02T02:10:00Z" }, // diabaikan
+      ],
+    }));
+    const by = Object.fromEntries(samples.map((s) => [s.type, s.value]));
+    expect(by.sleep).toBe(480);
+    expect(by.sleep_light).toBe(60);
+    expect(by.sleep_deep).toBe(120);
+    expect(by.sleep_rem).toBe(60);
+    expect(by.sleep_awake).toBeUndefined();
+    expect(samples).toHaveLength(4);        // total + 3 stage, awake tak masuk
+  });
 });
