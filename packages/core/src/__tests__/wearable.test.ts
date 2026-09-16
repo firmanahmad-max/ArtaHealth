@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { dedupeSamples, rollupDaily, chooseSource, parseWearableImport, type WearableSample } from "../wearable.ts";
+import { dedupeSamples, rollupDaily, chooseSource, parseWearableImport, parseGoogleFitDailyCsv, type WearableSample } from "../wearable.ts";
 
 // waktu LOKAL (tanpa Z) agar rollup per-hari-lokal konsisten lintas timezone runner
 const s = (p: Partial<WearableSample>): WearableSample => ({
@@ -103,5 +103,36 @@ describe("parseWearableImport", () => {
   it("teks kosong / JSON rusak → aman ([], 0)", () => {
     expect(parseWearableImport("")).toEqual({ samples: [], skipped: 0 });
     expect(parseWearableImport("{ rusak")).toEqual({ samples: [], skipped: 0 });
+  });
+});
+
+describe("parseGoogleFitDailyCsv (konverter Takeout)", () => {
+  const HEADER = "Date,Step count,Calories (kcal),Average heart rate (bpm),Max heart rate (bpm),Average weight (kg),Max weight (kg)";
+  it("petakan kolom Fit → sampel harian (per tanggal, tengah malam)", () => {
+    const csv = `${HEADER}\n2026-09-01,8532,2100.5,64,140,70.2,71`;
+    const { samples, skipped } = parseGoogleFitDailyCsv(csv);
+    expect(skipped).toBe(0);
+    const by = Object.fromEntries(samples.map((s) => [s.type, s]));
+    expect(by.steps).toMatchObject({ value: 8532, unit: "count", startAt: "2026-09-01T00:00:00", source: "health_connect", externalId: "gfit-steps-2026-09-01" });
+    expect(by.active_energy).toMatchObject({ value: 2100.5, unit: "kcal" });
+    expect(by.heart_rate!.value).toBe(64);   // AVERAGE, bukan Max 140
+    expect(by.weight!.value).toBe(70.2);      // AVERAGE, bukan Max 71
+  });
+  it("sel kosong dilewati; baris tanpa metrik → skipped", () => {
+    const csv = `${HEADER}\n2026-09-01,,,,,,\n2026-09-02,1000,,,,,`;
+    const { samples, skipped } = parseGoogleFitDailyCsv(csv);
+    expect(samples).toHaveLength(1);          // hanya langkah 2 Sep
+    expect(samples[0]).toMatchObject({ type: "steps", value: 1000 });
+    expect(skipped).toBe(1);                  // baris 1 Sep tak menghasilkan sampel
+  });
+  it("tanpa kolom Date → skipped semua baris", () => {
+    expect(parseGoogleFitDailyCsv("Step count,Calories\n100,50")).toEqual({ samples: [], skipped: 1 });
+  });
+  it("auto-deteksi lewat parseWearableImport lalu rollup", () => {
+    const csv = `${HEADER}\n2026-09-01,3000,,,,,\n2026-09-01,,,,,,`;
+    const { samples } = parseWearableImport(csv);   // header tanpa type&value → jalur Fit
+    expect(samples.some((s) => s.type === "steps")).toBe(true);
+    const r = rollupDaily(samples);
+    expect(r.find((x) => x.type === "steps")).toMatchObject({ day: "2026-09-01", value: 3000 });
   });
 });

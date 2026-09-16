@@ -96,6 +96,9 @@ padanan tabel manual (detak jantung istirahat, SpO₂) → dipakai Early Warning
 - **WR-1b (SELESAI, non-native)**: impor manual dari file (CSV/JSON) → `parseWearableImport`
   (deterministik, baris tak valid dilewati) → engine dedup/rollup yang sama → rekap harian tampil
   di WEB tanpa Capacitor/device. Jembatan langsung dari §8 ("impor file, mis. export Google Fit").
+  Termasuk **konverter Google Fit** (`parseGoogleFitDailyCsv`): terima "Daily activity metrics.csv"
+  Google Takeout (Step count/Calories/Average heart rate/Average weight → sampel harian; pilih
+  AVERAGE, bukan Max/Min) — auto-terdeteksi oleh `parseWearableImport`, tombol impor yang sama.
 - **WR-2**: migration `wearable_samples` + Dexie + sync + plugin Android baca langkah+tidur →
   rollup + dedup + UI izin/consent + kartu status sinkron.
 - **WR-3**: detak jantung istirahat + energi → Early Warning/korelasi memakainya.
