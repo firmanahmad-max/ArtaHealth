@@ -33,15 +33,20 @@ export function WearableCard() {
   useEffect(() => { if (mounted) void refresh(); }, [mounted]);
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
     setStatus("Mengimpor…");
     try {
-      const { imported, skipped } = await importWearableText(await file.text());
+      let imported = 0, skipped = 0;
+      for (const f of files) {
+        const r = await importWearableText(await f.text());
+        imported += r.imported; skipped += r.skipped;
+      }
       await refresh();
+      const suffix = skipped ? `, ${skipped} baris/sesi dilewati` : "";
       setStatus(imported > 0
-        ? `Berhasil impor ${imported} sampel${skipped ? `, ${skipped} baris dilewati` : ""}.`
-        : `Tak ada data valid ditemukan${skipped ? ` (${skipped} baris dilewati)` : ""}.`);
+        ? `Berhasil impor ${imported} sampel${suffix}.`
+        : `Tak ada data valid ditemukan${skipped ? ` (${skipped} baris/sesi dilewati)` : ""}.`);
     } catch {
       setStatus("Gagal membaca file.");
     } finally {
@@ -85,11 +90,12 @@ export function WearableCard() {
 
       {!nativeReady && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <input ref={fileRef} type="file" accept=".csv,.json,text/csv,application/json" onChange={onFile} hidden />
+          <input ref={fileRef} type="file" accept=".csv,.json,text/csv,application/json" onChange={onFile} multiple hidden />
           <button onClick={() => fileRef.current?.click()} style={importBtn}>⬆️ Impor dari file (CSV/JSON)</button>
           {status && <p style={{ fontSize: 10.5, color: "var(--ah-text-secondary)" }}>{status}</p>}
           <p style={{ fontSize: 9.5, color: "var(--ah-text-tertiary)", lineHeight: 1.45 }}>
-            Terima file Google Fit (Takeout → "Daily activity metrics.csv") atau format sederhana kolom{" "}
+            Terima file Google Fit (Takeout → "Daily activity metrics.csv" untuk langkah/detak/berat, atau file
+            sesi tidur "All Sessions" — bisa pilih banyak) atau format sederhana kolom{" "}
             <code>type,value,unit,start_at</code> (type = steps/heart_rate/sleep/active_energy/weight/spo2).
           </p>
         </div>
