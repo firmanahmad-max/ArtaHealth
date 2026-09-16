@@ -102,6 +102,8 @@ padanan tabel manual (detak jantung istirahat, SpO₂) → dipakai Early Warning
   **Sesi tidur** (`parseGoogleFitSessionsJson`): file JSON "All Sessions" Takeout dgn
   `fitnessActivity:"sleep"` + `startTime`/`endTime` (ISO atau epoch ms) → durasi menit → sampel
   `sleep`; sesi non-tidur diabaikan; auto-terdeteksi; kartu izinkan pilih banyak file (satu per malam).
+  **Stage tidur**: array `segment` sesi (`sleep.light/deep/rem`) dipecah jadi metrik terpisah
+  `sleep_light`/`sleep_deep`/`sleep_rem` (menit, di samping total `sleep`); segmen `awake` diabaikan.
 - **WR-2**: migration `wearable_samples` + Dexie + sync + plugin Android baca langkah+tidur →
   rollup + dedup + UI izin/consent + kartu status sinkron.
 - **WR-3**: detak jantung istirahat + energi → Early Warning/korelasi memakainya.

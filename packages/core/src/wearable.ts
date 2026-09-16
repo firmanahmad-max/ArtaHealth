@@ -5,7 +5,10 @@
  * Capacitor + device). Lapisan ini murni & teruji; agnostik sumber. Non-medis.
  */
 
-export type WearableType = "steps" | "heart_rate" | "sleep" | "active_energy" | "weight" | "spo2";
+export type WearableType =
+  | "steps" | "heart_rate" | "sleep" | "active_energy" | "weight" | "spo2"
+  // rincian stage tidur (opsional, dari sesi Google Fit) — total tetap di "sleep"
+  | "sleep_light" | "sleep_deep" | "sleep_rem";
 export type WearableSource = "health_connect" | "healthkit";
 
 export interface WearableSample {
@@ -31,6 +34,7 @@ export function dedupeSamples(samples: WearableSample[]): WearableSample[] {
 /** Cara agregasi per jenis metrik dalam satu hari. */
 const AGG: Record<WearableType, "sum" | "avg" | "last"> = {
   steps: "sum", active_energy: "sum", sleep: "sum",
+  sleep_light: "sum", sleep_deep: "sum", sleep_rem: "sum",
   heart_rate: "avg", spo2: "avg", weight: "last",
 };
 
@@ -84,6 +88,7 @@ export function chooseSource(
 
 export const WEARABLE_LABEL: Record<WearableType, string> = {
   steps: "Langkah", heart_rate: "Detak jantung istirahat", sleep: "Tidur",
+  sleep_light: "Tidur ringan", sleep_deep: "Tidur dalam", sleep_rem: "Tidur REM",
   active_energy: "Energi aktif", weight: "Berat", spo2: "SpO₂",
 };
 
@@ -92,10 +97,11 @@ export const WEARABLE_LABEL: Record<WearableType, string> = {
 // data dari file CSV/JSON (mis. hasil export Health Connect/Google Fit yang dikonversi ke format
 // sederhana ini). Parser DETERMINISTIK & aman: baris tak valid dilewati, bukan menggagalkan impor.
 
-export const WEARABLE_TYPES: WearableType[] = ["steps", "heart_rate", "sleep", "active_energy", "weight", "spo2"];
+export const WEARABLE_TYPES: WearableType[] = ["steps", "heart_rate", "sleep", "active_energy", "weight", "spo2", "sleep_light", "sleep_deep", "sleep_rem"];
 const WEARABLE_SOURCES: WearableSource[] = ["health_connect", "healthkit"];
 const DEFAULT_UNIT: Record<WearableType, string> = {
   steps: "count", heart_rate: "bpm", sleep: "min", active_energy: "kcal", weight: "kg", spo2: "%",
+  sleep_light: "min", sleep_deep: "min", sleep_rem: "min",
 };
 
 export interface WearableImportResult {
@@ -238,26 +244,56 @@ function parseTimeMs(v: unknown): number {
   return Date.parse(s);
 }
 
-/** Satu sesi → sampel tidur, atau null bila bukan tidur / waktu tak valid. */
-function sleepFromSession(o: Record<string, unknown>): WearableSample | null {
-  const activity = String(o.fitnessActivity ?? o.activityType ?? o.name ?? "").toLowerCase();
-  if (!activity.includes("sleep")) return null;
+/** Rentang waktu {startAt ISO, endAt ISO, menit} dari objek berfield start/end, atau null. */
+function sessionSpan(o: Record<string, unknown>): { startAt: string; endAt: string; minutes: number } | null {
   const st = parseTimeMs(o.startTime ?? o.start_time);
   const en = parseTimeMs(o.endTime ?? o.end_time);
   if (!Number.isFinite(st) || !Number.isFinite(en) || en <= st) return null;
-  const startAt = new Date(st).toISOString();
-  return {
-    externalId: `gfit-sleep-${startAt}`, type: "sleep", value: Math.round((en - st) / 60000),
-    unit: "min", startAt, endAt: new Date(en).toISOString(), source: "health_connect",
-  };
+  return { startAt: new Date(st).toISOString(), endAt: new Date(en).toISOString(), minutes: Math.round((en - st) / 60000) };
+}
+
+/** Petakan aktivitas segmen tidur → stage. null bila bukan light/deep/rem (mis. awake/generik). */
+function sleepStageType(activity: string): WearableType | null {
+  if (activity.includes("deep")) return "sleep_deep";
+  if (activity.includes("rem")) return "sleep_rem";
+  if (activity.includes("light")) return "sleep_light";
+  return null;
+}
+
+/**
+ * Satu sesi tidur → total `sleep` + (bila ada `segment`) rincian stage light/deep/rem. Sesi
+ * bukan tidur / waktu tak valid → []. Total & stage sama-sama sampel harian yang di-rollup terpisah.
+ */
+function sleepSamplesFromSession(o: Record<string, unknown>): WearableSample[] {
+  const activity = String(o.fitnessActivity ?? o.activityType ?? o.name ?? "").toLowerCase();
+  if (!activity.includes("sleep")) return [];
+  const span = sessionSpan(o);
+  if (!span) return [];
+  const out: WearableSample[] = [{
+    externalId: `gfit-sleep-${span.startAt}`, type: "sleep", value: span.minutes,
+    unit: "min", startAt: span.startAt, endAt: span.endAt, source: "health_connect",
+  }];
+  const segs = Array.isArray(o.segment) ? o.segment : Array.isArray(o.segments) ? o.segments : [];
+  for (const raw of segs as Record<string, unknown>[]) {
+    const segAct = String(raw?.fitnessActivity ?? raw?.activityType ?? "").toLowerCase();
+    const stage = sleepStageType(segAct);
+    if (!stage) continue;                       // awake / segmen tanpa stage → diabaikan
+    const s = sessionSpan(raw);
+    if (!s) continue;
+    out.push({
+      externalId: `gfit-${stage}-${s.startAt}`, type: stage, value: s.minutes,
+      unit: "min", startAt: s.startAt, endAt: s.endAt, source: "health_connect",
+    });
+  }
+  return out;
 }
 
 function googleFitSessionsToResult(items: Record<string, unknown>[]): WearableImportResult {
   const samples: WearableSample[] = [];
   let skipped = 0;
   for (const it of items) {
-    const s = sleepFromSession(it);
-    if (s) samples.push(s); else skipped++;
+    const s = sleepSamplesFromSession(it);
+    if (s.length) samples.push(...s); else skipped++;
   }
   return { samples, skipped };
 }
