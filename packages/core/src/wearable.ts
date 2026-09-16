@@ -86,3 +86,80 @@ export const WEARABLE_LABEL: Record<WearableType, string> = {
   steps: "Langkah", heart_rate: "Detak jantung istirahat", sleep: "Tidur",
   active_energy: "Energi aktif", weight: "Berat", spo2: "SpO₂",
 };
+
+// ===== WR-1b: impor manual dari file (jembatan non-native) =====
+// Jembatan sementara tanpa Capacitor/device (docs/addendum-wearable.md §8): pengguna mengimpor
+// data dari file CSV/JSON (mis. hasil export Health Connect/Google Fit yang dikonversi ke format
+// sederhana ini). Parser DETERMINISTIK & aman: baris tak valid dilewati, bukan menggagalkan impor.
+
+export const WEARABLE_TYPES: WearableType[] = ["steps", "heart_rate", "sleep", "active_energy", "weight", "spo2"];
+const WEARABLE_SOURCES: WearableSource[] = ["health_connect", "healthkit"];
+const DEFAULT_UNIT: Record<WearableType, string> = {
+  steps: "count", heart_rate: "bpm", sleep: "min", active_energy: "kcal", weight: "kg", spo2: "%",
+};
+
+export interface WearableImportResult {
+  samples: WearableSample[];
+  skipped: number;      // baris/objek yang dilewati karena tak valid
+}
+
+/** Ubah satu objek mentah (dari JSON/CSV) → WearableSample, atau null bila tak valid. */
+function coerceSample(raw: Record<string, unknown>): WearableSample | null {
+  const type = String(raw.type ?? "").trim().toLowerCase() as WearableType;
+  if (!WEARABLE_TYPES.includes(type)) return null;
+  const value = Number(raw.value);
+  if (!Number.isFinite(value)) return null;
+  const startAt = String(raw.startAt ?? raw.start_at ?? "").trim();
+  if (!startAt || Number.isNaN(Date.parse(startAt))) return null;
+  const srcRaw = String(raw.source ?? "").trim().toLowerCase();
+  const source: WearableSource = (WEARABLE_SOURCES as string[]).includes(srcRaw) ? (srcRaw as WearableSource) : "health_connect";
+  const unit = String(raw.unit ?? "").trim() || DEFAULT_UNIT[type];
+  const endRaw = String(raw.endAt ?? raw.end_at ?? "").trim();
+  const endAt = endRaw && !Number.isNaN(Date.parse(endRaw)) ? endRaw : undefined;
+  // externalId dari file bila ada; jika tidak, turunkan deterministik (idempoten saat re-impor)
+  const extRaw = String(raw.externalId ?? raw.external_id ?? "").trim();
+  const externalId = extRaw || `imp-${type}-${startAt}`;
+  return { externalId, type, value, unit, startAt, endAt, source };
+}
+
+/** Parse baris CSV sederhana (tanpa koma ber-tanda-kutip). */
+function parseCsv(text: string): Record<string, unknown>[] {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0);
+  if (lines.length < 2) return [];
+  const header = lines[0]!.split(",").map((h) => h.trim().toLowerCase());
+  return lines.slice(1).map((line) => {
+    const cells = line.split(",");
+    const obj: Record<string, unknown> = {};
+    header.forEach((h, i) => { obj[h] = (cells[i] ?? "").trim(); });
+    return obj;
+  });
+}
+
+/**
+ * Impor sampel wearable dari teks CSV atau JSON. Diterima:
+ * - JSON: array objek {type,value,unit?,startAt|start_at,endAt?,source?,externalId?}
+ * - CSV: header `type,value,unit,start_at,end_at,source,external_id` (kolom by nama, urut bebas)
+ * Baris tak valid (jenis/nilai/tanggal salah) DILEWATI (dihitung di `skipped`). Non-medis.
+ */
+export function parseWearableImport(text: string): WearableImportResult {
+  const trimmed = (text ?? "").trim();
+  if (!trimmed) return { samples: [], skipped: 0 };
+  let rows: Record<string, unknown>[];
+  if (trimmed[0] === "[" || trimmed[0] === "{") {
+    try {
+      const parsed = JSON.parse(trimmed);
+      rows = Array.isArray(parsed) ? parsed : Array.isArray((parsed as { samples?: unknown }).samples) ? (parsed as { samples: Record<string, unknown>[] }).samples : [parsed];
+    } catch {
+      return { samples: [], skipped: 0 };
+    }
+  } else {
+    rows = parseCsv(trimmed);
+  }
+  const samples: WearableSample[] = [];
+  let skipped = 0;
+  for (const r of rows) {
+    const s = coerceSample(r as Record<string, unknown>);
+    if (s) samples.push(s); else skipped++;
+  }
+  return { samples, skipped };
+}
