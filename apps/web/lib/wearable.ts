@@ -1,6 +1,7 @@
 "use client";
 import {
-  dedupeSamples, rollupDaily, type WearableSample, type DailyRollup, type WearableType,
+  dedupeSamples, rollupDaily, parseWearableImport,
+  type WearableSample, type DailyRollup, type WearableType,
 } from "@arta/core";
 import { db, type LocalWearableSample } from "./db";
 import { getActiveProfileId } from "./sync";
@@ -11,8 +12,8 @@ import { getActiveProfileId } from "./sync";
  * (idempoten via id) → outbox → sync T1, dan baca rollup harian untuk kartu/skor.
  *
  * Pengambilan native (Health Connect/HealthKit) = WR-2 (butuh Capacitor + device). Selama
- * belum ada bridge native, `isWearableNativeReady()` = false dan tak ada sampel yang masuk →
- * fitur benar-benar inert di web (tak ada request, tak ada tabel terisi).
+ * belum ada bridge native, `isWearableNativeReady()` = false. Jembatan non-native (WR-1b):
+ * IMPOR FILE (CSV/JSON) → `importWearableText` → engine yang sama → rollup tampil di web.
  */
 
 const enqueue = (id: string): Promise<unknown> =>
@@ -50,6 +51,16 @@ export async function ingestWearableSamples(samples: WearableSample[]): Promise<
   await db.wearable_samples.bulkPut(rows);
   for (const r of rows) await enqueue(r.id);
   return rows.length;
+}
+
+/**
+ * Impor sampel dari teks file (CSV/JSON) → parse deterministik → simpan (dedup) ke Dexie.
+ * Jembatan WR-1b tanpa native: baris tak valid dilewati (dilaporkan di `skipped`). Data T1.
+ */
+export async function importWearableText(text: string): Promise<{ imported: number; skipped: number }> {
+  const { samples, skipped } = parseWearableImport(text);
+  const imported = await ingestWearableSamples(samples);
+  return { imported, skipped };
 }
 
 const toSample = (r: LocalWearableSample): WearableSample => ({

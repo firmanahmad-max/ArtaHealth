@@ -93,6 +93,9 @@ padanan tabel manual (detak jantung istirahat, SpO₂) → dipakai Early Warning
   fitur / pertimbangkan impor manual.*
 - **WR-1**: integrasi Capacitor ke repo (build APK dari web yang ada) + `isNativePlatform` guard;
   web tetap jalan. CI/build native (opsional di CI).
+- **WR-1b (SELESAI, non-native)**: impor manual dari file (CSV/JSON) → `parseWearableImport`
+  (deterministik, baris tak valid dilewati) → engine dedup/rollup yang sama → rekap harian tampil
+  di WEB tanpa Capacitor/device. Jembatan langsung dari §8 ("impor file, mis. export Google Fit").
 - **WR-2**: migration `wearable_samples` + Dexie + sync + plugin Android baca langkah+tidur →
   rollup + dedup + UI izin/consent + kartu status sinkron.
 - **WR-3**: detak jantung istirahat + energi → Early Warning/korelasi memakainya.
