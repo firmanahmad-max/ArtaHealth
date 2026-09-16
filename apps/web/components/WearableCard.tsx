@@ -89,7 +89,8 @@ export function WearableCard() {
           <button onClick={() => fileRef.current?.click()} style={importBtn}>⬆️ Impor dari file (CSV/JSON)</button>
           {status && <p style={{ fontSize: 10.5, color: "var(--ah-text-secondary)" }}>{status}</p>}
           <p style={{ fontSize: 9.5, color: "var(--ah-text-tertiary)", lineHeight: 1.45 }}>
-            Format: kolom <code>type,value,unit,start_at</code> (type = steps/heart_rate/sleep/active_energy/weight/spo2).
+            Terima file Google Fit (Takeout → "Daily activity metrics.csv") atau format sederhana kolom{" "}
+            <code>type,value,unit,start_at</code> (type = steps/heart_rate/sleep/active_energy/weight/spo2).
           </p>
         </div>
       )}

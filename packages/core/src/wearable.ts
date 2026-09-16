@@ -153,6 +153,9 @@ export function parseWearableImport(text: string): WearableImportResult {
       return { samples: [], skipped: 0 };
     }
   } else {
+    // CSV: format sederhana bila ada kolom type&value; selain itu coba format Google Fit (Takeout).
+    const header = (trimmed.split(/\r?\n/)[0] ?? "").split(",").map((h) => h.trim().toLowerCase());
+    if (!(header.includes("type") && header.includes("value"))) return parseGoogleFitDailyCsv(trimmed);
     rows = parseCsv(trimmed);
   }
   const samples: WearableSample[] = [];
@@ -160,6 +163,57 @@ export function parseWearableImport(text: string): WearableImportResult {
   for (const r of rows) {
     const s = coerceSample(r as Record<string, unknown>);
     if (s) samples.push(s); else skipped++;
+  }
+  return { samples, skipped };
+}
+
+// ===== Konverter Google Fit (Takeout) =====
+// "Daily activity metrics.csv" dari Google Takeout: satu baris per tanggal dengan kolom mis.
+// "Date, Step count, Calories (kcal), Average heart rate (bpm), Average weight (kg), ...".
+// Dipetakan ke sampel harian (start_at = tengah malam lokal tanggal itu). Kolom dicocokkan
+// per-nama (substring, case-insensitive) agar tahan variasi versi/locale ISO.
+
+interface GfitMetric { type: WearableType; unit: string; match: (h: string) => boolean }
+const GFIT_METRICS: GfitMetric[] = [
+  { type: "steps", unit: "count", match: (h) => h.includes("step count") || h === "steps" },
+  { type: "active_energy", unit: "kcal", match: (h) => h.includes("calories") },
+  // "average" spesifik → hindari tertukar dgn Max/Min heart rate atau Heart Points/Minutes & Max/Min weight
+  { type: "heart_rate", unit: "bpm", match: (h) => h.includes("average heart rate") },
+  { type: "weight", unit: "kg", match: (h) => h.includes("average weight") },
+];
+
+/**
+ * Konversi CSV "Daily activity metrics" Google Fit (Takeout) → sampel wearable. Butuh kolom
+ * bertanda "Date" (ISO YYYY-MM-DD) + ≥1 kolom metrik dikenal. Sel kosong/non-angka dilewati;
+ * `skipped` = baris yang tak menghasilkan sampel (tanggal invalid / semua metrik kosong).
+ */
+export function parseGoogleFitDailyCsv(text: string): WearableImportResult {
+  const rows = parseCsv((text ?? "").trim());
+  if (rows.length === 0) return { samples: [], skipped: 0 };
+  const keys = Object.keys(rows[0]!);
+  const dateKey = keys.find((k) => k.includes("date"));
+  if (!dateKey) return { samples: [], skipped: rows.length };
+  const cols = GFIT_METRICS
+    .map((m) => ({ m, key: keys.find((k) => m.match(k)) }))
+    .filter((x): x is { m: GfitMetric; key: string } => !!x.key);
+  const samples: WearableSample[] = [];
+  let skipped = 0;
+  for (const row of rows) {
+    const date = String(row[dateKey] ?? "").trim();
+    if (!date || Number.isNaN(Date.parse(date))) { skipped++; continue; }
+    let produced = 0;
+    for (const { m, key } of cols) {
+      const raw = String(row[key] ?? "").trim();
+      if (!raw) continue;
+      const value = Number(raw);
+      if (!Number.isFinite(value)) continue;
+      samples.push({
+        externalId: `gfit-${m.type}-${date}`, type: m.type, value, unit: m.unit,
+        startAt: `${date}T00:00:00`, source: "health_connect",
+      });
+      produced++;
+    }
+    if (produced === 0) skipped++;
   }
   return { samples, skipped };
 }
