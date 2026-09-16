@@ -74,6 +74,36 @@ export function rollupDaily(samples: WearableSample[]): DailyRollup[] {
   return out.sort((a, b) => a.day.localeCompare(b.day) || a.type.localeCompare(b.type));
 }
 
+/** Hari rollup terbaru ("YYYY-MM-DD") atau null bila kosong. */
+export function latestRollupDay(rollups: DailyRollup[]): string | null {
+  let m: string | null = null;
+  for (const r of rollups) if (m == null || r.day > m) m = r.day;
+  return m;
+}
+
+const dayKey = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/**
+ * Deret harian satu metrik untuk `days` hari terakhir yang berakhir di `endDay` (urut lama→baru).
+ * Hari tanpa data = null (bukan 0) → grafik tren bisa membedakan "nol" vs "tak ada". Deterministik.
+ */
+export function wearableDaySeries(
+  rollups: DailyRollup[], type: WearableType, endDay: string, days: number,
+): { day: string; value: number | null }[] {
+  const byDay = new Map<string, number>();
+  for (const r of rollups) if (r.type === type) byDay.set(r.day, r.value);
+  const end = new Date(`${endDay}T00:00:00`);
+  const out: { day: string; value: number | null }[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(end);
+    d.setDate(d.getDate() - i);
+    const key = dayKey(d);
+    out.push({ day: key, value: byDay.has(key) ? byDay.get(key)! : null });
+  }
+  return out;
+}
+
 /**
  * Pilih SATU nilai per metrik/hari saat ada dari wearable & manual → hindari dobel-hitung.
  * Default utamakan wearable bila tersedia; jika salah satu null pakai yang ada.

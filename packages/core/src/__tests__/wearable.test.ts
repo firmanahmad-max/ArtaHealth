@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { dedupeSamples, rollupDaily, chooseSource, parseWearableImport, parseGoogleFitDailyCsv, parseGoogleFitSessionsJson, type WearableSample } from "../wearable.ts";
+import { dedupeSamples, rollupDaily, chooseSource, parseWearableImport, parseGoogleFitDailyCsv, parseGoogleFitSessionsJson, latestRollupDay, wearableDaySeries, type WearableSample } from "../wearable.ts";
 
 // waktu LOKAL (tanpa Z) agar rollup per-hari-lokal konsisten lintas timezone runner
 const s = (p: Partial<WearableSample>): WearableSample => ({
@@ -51,6 +51,23 @@ describe("rollupDaily", () => {
       s({ externalId: "a", type: "steps", value: 100, startAt: "2026-09-01T08:00:00" }),
     ]);
     expect(r.map((x) => x.day)).toEqual(["2026-09-01", "2026-09-02"]);
+  });
+});
+
+describe("latestRollupDay & wearableDaySeries", () => {
+  const rollups = rollupDaily([
+    s({ externalId: "a", type: "steps", value: 1000, startAt: "2026-09-01T08:00:00" }),
+    s({ externalId: "b", type: "steps", value: 3000, startAt: "2026-09-03T08:00:00" }),
+    s({ externalId: "c", type: "sleep", unit: "min", value: 420, startAt: "2026-09-03T02:00:00" }),
+  ]);
+  it("latestRollupDay = hari terbaru; null bila kosong", () => {
+    expect(latestRollupDay(rollups)).toBe("2026-09-03");
+    expect(latestRollupDay([])).toBeNull();
+  });
+  it("deret 4 hari berakhir 3 Sep: isi hari yg ada, null utk yg tak ada, urut lama→baru", () => {
+    const series = wearableDaySeries(rollups, "steps", "2026-09-03", 4);
+    expect(series.map((x) => x.day)).toEqual(["2026-08-31", "2026-09-01", "2026-09-02", "2026-09-03"]);
+    expect(series.map((x) => x.value)).toEqual([null, 1000, null, 3000]);
   });
 });
 

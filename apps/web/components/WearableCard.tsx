@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { WEARABLE_LABEL, type DailyRollup, type WearableType } from "@arta/core";
+import { WEARABLE_LABEL, latestRollupDay, wearableDaySeries, type DailyRollup, type WearableType } from "@arta/core";
 import { isWearableNativeReady, wearableDailyRollup, importWearableText } from "@/lib/wearable";
 import { useMounted } from "@/lib/useMounted";
 
@@ -21,17 +21,26 @@ const todayKey = (): string => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
+const dateLabel = (day: string): string =>
+  day === todayKey() ? "hari ini" : new Date(`${day}T00:00:00`).toLocaleDateString("id-ID", { day: "numeric", month: "short" });
+
+const TREND_DAYS = 7;
 
 export function WearableCard() {
   const mounted = useMounted();
-  const [today, setToday] = useState<DailyRollup[] | null>(null);
+  const [all, setAll] = useState<DailyRollup[] | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const refresh = () =>
-    wearableDailyRollup().then((rows) => setToday(rows.filter((r) => r.day === todayKey())));
+  const refresh = () => wearableDailyRollup().then(setAll);
 
   useEffect(() => { if (mounted) void refresh(); }, [mounted]);
+
+  const latest = all ? latestRollupDay(all) : null;
+  const metrics = latest ? all!.filter((r) => r.day === latest) : [];
+  const stepsSeries = latest ? wearableDaySeries(all!, "steps", latest, TREND_DAYS) : [];
+  const hasStepsTrend = stepsSeries.some((p) => p.value != null);
+  const stepsMax = Math.max(1, ...stepsSeries.map((p) => p.value ?? 0));
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -56,7 +65,7 @@ export function WearableCard() {
   };
 
   const nativeReady = mounted && isWearableNativeReady();
-  const hasData = (today?.length ?? 0) > 0;
+  const hasData = metrics.length > 0;
 
   return (
     <div style={card}>
@@ -68,17 +77,35 @@ export function WearableCard() {
       </div>
 
       {hasData ? (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {today!.map((r) => (
-            <div key={r.type} style={metric}>
-              <span style={{ fontSize: 15 }}>{ICON[r.type]}</span>
-              <div style={{ minWidth: 0 }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: "var(--ah-text-primary)", lineHeight: 1.1 }}>{fmt(r)}</p>
-                <p style={{ fontSize: 9.5, color: "var(--ah-text-tertiary)" }}>{WEARABLE_LABEL[r.type]}</p>
+        <>
+          <p style={{ fontSize: 10, color: "var(--ah-text-tertiary)", marginTop: -4 }}>Data terbaru · {dateLabel(latest!)}</p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {metrics.map((r) => (
+              <div key={r.type} style={metric}>
+                <span style={{ fontSize: 15 }}>{ICON[r.type]}</span>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: "var(--ah-text-primary)", lineHeight: 1.1 }}>{fmt(r)}</p>
+                  <p style={{ fontSize: 9.5, color: "var(--ah-text-tertiary)" }}>{WEARABLE_LABEL[r.type]}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          {hasStepsTrend && (
+            <div>
+              <p style={{ fontSize: 10, color: "var(--ah-text-tertiary)", marginBottom: 4 }}>👟 Langkah · {TREND_DAYS} hari</p>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 42 }}>
+                {stepsSeries.map((p) => (
+                  <div key={p.day} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}
+                    title={`${dateLabel(p.day)}: ${p.value != null ? p.value.toLocaleString("id-ID") + " langkah" : "tak ada data"}`}>
+                    <div style={{ width: "100%", height: Math.round(((p.value ?? 0) / stepsMax) * 34) + (p.value != null ? 4 : 2),
+                      background: p.value != null ? "var(--ah-accent)" : "var(--ah-border)", borderRadius: 3, opacity: p.value != null ? 1 : 0.5 }} />
+                    <span style={{ fontSize: 7.5, color: "var(--ah-text-tertiary)" }}>{new Date(`${p.day}T00:00:00`).getDate()}</span>
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       ) : (
         <div style={emptyBox}>
           <p style={{ fontSize: 11.5, color: "var(--ah-text-secondary)", lineHeight: 1.5 }}>
