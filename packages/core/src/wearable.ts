@@ -152,6 +152,12 @@ export function parseWearableImport(text: string): WearableImportResult {
     } catch {
       return { samples: [], skipped: 0 };
     }
+    // Sesi Google Fit (Takeout "All Sessions"): objek dgn fitnessActivity / startTime+endTime,
+    // BUKAN sampel sederhana (tanpa type+value) → jalur konverter sesi (tidur).
+    const first = rows[0] as Record<string, unknown> | undefined;
+    const looksSession = !!first && !("type" in first && "value" in first) &&
+      ("fitnessActivity" in first || (("startTime" in first || "start_time" in first) && ("endTime" in first || "end_time" in first)));
+    if (looksSession) return googleFitSessionsToResult(rows as Record<string, unknown>[]);
   } else {
     // CSV: format sederhana bila ada kolom type&value; selain itu coba format Google Fit (Takeout).
     const header = (trimmed.split(/\r?\n/)[0] ?? "").split(",").map((h) => h.trim().toLowerCase());
@@ -216,4 +222,55 @@ export function parseGoogleFitDailyCsv(text: string): WearableImportResult {
     if (produced === 0) skipped++;
   }
   return { samples, skipped };
+}
+
+// ===== Konverter sesi Google Fit (Takeout "All Sessions") — TIDUR =====
+// Tiap sesi tidur = satu file/objek JSON dgn `fitnessActivity: "sleep"` + `startTime`/`endTime`
+// (ISO atau epoch ms). Durasi menit = endTime − startTime → sampel `sleep`. Sesi non-tidur
+// diabaikan (dihitung `skipped`). start_at dinormalisasi ke ISO agar rollup per-hari-lokal benar.
+
+/** ms epoch dari nilai waktu: ISO string via Date.parse, atau string angka murni = epoch ms. */
+function parseTimeMs(v: unknown): number {
+  if (v == null) return NaN;
+  const s = String(v).trim();
+  if (!s) return NaN;
+  if (/^\d+$/.test(s)) return Number(s);
+  return Date.parse(s);
+}
+
+/** Satu sesi → sampel tidur, atau null bila bukan tidur / waktu tak valid. */
+function sleepFromSession(o: Record<string, unknown>): WearableSample | null {
+  const activity = String(o.fitnessActivity ?? o.activityType ?? o.name ?? "").toLowerCase();
+  if (!activity.includes("sleep")) return null;
+  const st = parseTimeMs(o.startTime ?? o.start_time);
+  const en = parseTimeMs(o.endTime ?? o.end_time);
+  if (!Number.isFinite(st) || !Number.isFinite(en) || en <= st) return null;
+  const startAt = new Date(st).toISOString();
+  return {
+    externalId: `gfit-sleep-${startAt}`, type: "sleep", value: Math.round((en - st) / 60000),
+    unit: "min", startAt, endAt: new Date(en).toISOString(), source: "health_connect",
+  };
+}
+
+function googleFitSessionsToResult(items: Record<string, unknown>[]): WearableImportResult {
+  const samples: WearableSample[] = [];
+  let skipped = 0;
+  for (const it of items) {
+    const s = sleepFromSession(it);
+    if (s) samples.push(s); else skipped++;
+  }
+  return { samples, skipped };
+}
+
+/**
+ * Parse JSON sesi Google Fit (Takeout "All Sessions") → sampel tidur. Terima satu objek sesi
+ * atau array sesi. Sesi non-tidur / waktu tak valid dilewati (`skipped`). Non-medis.
+ */
+export function parseGoogleFitSessionsJson(text: string): WearableImportResult {
+  const trimmed = (text ?? "").trim();
+  if (!trimmed) return { samples: [], skipped: 0 };
+  let parsed: unknown;
+  try { parsed = JSON.parse(trimmed); } catch { return { samples: [], skipped: 0 }; }
+  const items = Array.isArray(parsed) ? parsed : [parsed];
+  return googleFitSessionsToResult(items as Record<string, unknown>[]);
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { dedupeSamples, rollupDaily, chooseSource, parseWearableImport, parseGoogleFitDailyCsv, type WearableSample } from "../wearable.ts";
+import { dedupeSamples, rollupDaily, chooseSource, parseWearableImport, parseGoogleFitDailyCsv, parseGoogleFitSessionsJson, type WearableSample } from "../wearable.ts";
 
 // waktu LOKAL (tanpa Z) agar rollup per-hari-lokal konsisten lintas timezone runner
 const s = (p: Partial<WearableSample>): WearableSample => ({
@@ -134,5 +134,40 @@ describe("parseGoogleFitDailyCsv (konverter Takeout)", () => {
     expect(samples.some((s) => s.type === "steps")).toBe(true);
     const r = rollupDaily(samples);
     expect(r.find((x) => x.type === "steps")).toMatchObject({ day: "2026-09-01", value: 3000 });
+  });
+});
+
+describe("parseGoogleFitSessionsJson (sesi tidur Takeout)", () => {
+  it("sesi tidur → sampel sleep (durasi menit dari start/end)", () => {
+    const { samples, skipped } = parseGoogleFitSessionsJson(JSON.stringify({
+      fitnessActivity: "sleep", startTime: "2026-09-01T22:30:00.000Z", endTime: "2026-09-02T06:00:00.000Z",
+    }));
+    expect(skipped).toBe(0);
+    expect(samples).toHaveLength(1);
+    expect(samples[0]).toMatchObject({ type: "sleep", unit: "min", value: 450, source: "health_connect" }); // 7j30m
+    expect(samples[0]!.externalId).toContain("gfit-sleep-");
+  });
+  it("array sesi: non-tidur & waktu invalid dilewati", () => {
+    const { samples, skipped } = parseGoogleFitSessionsJson(JSON.stringify([
+      { fitnessActivity: "sleep", startTime: "2026-09-01T23:00:00Z", endTime: "2026-09-02T05:00:00Z" },
+      { fitnessActivity: "running", startTime: "2026-09-02T06:00:00Z", endTime: "2026-09-02T06:30:00Z" },
+      { fitnessActivity: "sleep", startTime: "2026-09-03T05:00:00Z", endTime: "2026-09-03T04:00:00Z" }, // end<start
+    ]));
+    expect(samples).toHaveLength(1);
+    expect(samples[0]!.value).toBe(360);   // 6 jam
+    expect(skipped).toBe(2);
+  });
+  it("auto-deteksi sesi lewat parseWearableImport", () => {
+    const { samples } = parseWearableImport(JSON.stringify([
+      { fitnessActivity: "sleep", startTime: "2026-09-01T22:00:00Z", endTime: "2026-09-02T05:30:00Z" },
+    ]));
+    expect(samples[0]).toMatchObject({ type: "sleep", value: 450 });
+  });
+  it("epoch millis pada startTime/endTime didukung", () => {
+    const start = Date.UTC(2026, 8, 1, 22, 0, 0);
+    const { samples } = parseGoogleFitSessionsJson(JSON.stringify([
+      { fitnessActivity: "sleep", startTime: String(start), endTime: String(start + 8 * 3600 * 1000) },
+    ]));
+    expect(samples[0]).toMatchObject({ type: "sleep", value: 480 });
   });
 });
