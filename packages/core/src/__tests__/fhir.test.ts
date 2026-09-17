@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  toPatient, biomarkerToObservations, medicationToStatement, buildFhirBundle, summarizeBundle,
-  type FhirBundle,
+  toPatient, biomarkerToObservations, medicationToStatement, wearableToObservation,
+  buildFhirBundle, summarizeBundle, type FhirBundle,
 } from "../fhir.ts";
 
 describe("toPatient", () => {
@@ -56,6 +56,27 @@ describe("medicationToStatement", () => {
   });
 });
 
+describe("wearableToObservation", () => {
+  it("langkah → Observation activity LOINC 41950-7 UCUM {steps}", () => {
+    const o = wearableToObservation({ type: "steps", value: 8500, day: "2026-09-01" })!;
+    expect(o.resourceType).toBe("Observation");
+    expect((o.category as { coding: { code: string }[] }[])[0]!.coding[0]!.code).toBe("activity");
+    expect((o.code as { coding: { code: string }[] }).coding[0]!.code).toBe("41950-7");
+    expect(o.valueQuantity).toMatchObject({ value: 8500, code: "{steps}" });
+    expect(o.effectiveDateTime).toBe("2026-09-01T00:00:00");
+  });
+  it("berat → vital-signs 29463-7; tidur → activity 93832-4 menit", () => {
+    expect((wearableToObservation({ type: "weight", value: 70, day: "2026-09-01" })!.category as { coding: { code: string }[] }[])[0]!.coding[0]!.code).toBe("vital-signs");
+    const sleep = wearableToObservation({ type: "sleep", value: 420, day: "2026-09-01" })!;
+    expect((sleep.code as { coding: { code: string }[] }).coding[0]!.code).toBe("93832-4");
+    expect(sleep.valueQuantity).toMatchObject({ code: "min" });
+  });
+  it("stage tidur / tipe tak didukung / nilai invalid → null", () => {
+    expect(wearableToObservation({ type: "sleep_deep", value: 120, day: "2026-09-01" })).toBeNull();
+    expect(wearableToObservation({ type: "steps", value: NaN, day: "2026-09-01" })).toBeNull();
+  });
+});
+
 describe("buildFhirBundle", () => {
   it("Patient dulu → Observation urut waktu → MedicationStatement; timestamp dipakai", () => {
     const bundle = buildFhirBundle({
@@ -78,6 +99,24 @@ describe("buildFhirBundle", () => {
     const b = buildFhirBundle({});
     expect(b.entry).toEqual([]);
     expect(b.resourceType).toBe("Bundle");
+  });
+  it("wearable disisipkan setelah biomarker, sebelum obat; stage tidur diabaikan", () => {
+    const bundle = buildFhirBundle({
+      patient: { name: "Budi" },
+      biomarkers: [{ biomarker: "glucose", context: "gdp", values: { value: 100 }, measuredAt: "2026-09-01T08:00:00Z" }],
+      wearables: [
+        { type: "sleep_deep", value: 120, day: "2026-09-02" },  // diabaikan
+        { type: "steps", value: 9000, day: "2026-09-02" },
+        { type: "sleep", value: 420, day: "2026-09-01" },
+      ],
+      medications: [{ name: "Metformin", isActive: true }],
+    });
+    const types = bundle.entry.map((e) => e.resource.resourceType);
+    expect(types).toEqual(["Patient", "Observation", "Observation", "Observation", "MedicationStatement"]);
+    // wearable urut hari lalu tipe: sleep (1 Sep) sebelum steps (2 Sep)
+    expect((bundle.entry[2]!.resource.code as { text: string }).text).toBe("Durasi tidur");
+    expect((bundle.entry[3]!.resource.code as { text: string }).text).toBe("Jumlah langkah 24 jam");
+    expect(summarizeBundle(bundle)).toEqual({ Patient: 1, Observation: 3, MedicationStatement: 1 });
   });
 });
 

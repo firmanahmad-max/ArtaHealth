@@ -52,7 +52,7 @@ export function SatuSehatCard() {
       ) : (
         <div style={emptyBox}>
           <p style={{ fontSize: 11.5, color: "var(--ah-text-secondary)", lineHeight: 1.5 }}>
-            Belum ada data biomarker/obat untuk diekspor. Catat pengukuran atau obat terlebih dahulu.
+            Belum ada data untuk diekspor. Catat pengukuran/obat atau impor data perangkat (Wearable) dulu.
           </p>
         </div>
       )}

@@ -1,25 +1,28 @@
 "use client";
 import {
-  buildFhirBundle, summarizeBundle, type FhirBundle, type FhirBiomarkerInput, type FhirMedicationInput,
+  buildFhirBundle, summarizeBundle,
+  type FhirBundle, type FhirBiomarkerInput, type FhirMedicationInput, type FhirWearableInput,
 } from "@arta/core";
 import { db } from "./db";
 import { getActiveProfileId } from "./sync";
+import { wearableDailyRollup } from "./wearable";
 
 /**
- * SATUSEHAT / FHIR (backlog · SS-1) — rakit Bundle FHIR R4 dari Dexie profil aktif (biomarker
- * + obat + identitas) via engine murni @arta/core, lalu ekspor sebagai berkas .json. OFFLINE:
- * berkas dibuat DI PERANGKAT (Blob), tak ada unggah. Sinkronisasi jaringan SATUSEHAT (SS-2)
- * butuh kredensial organisasi → menyusul. Data kesehatan T1 (tak pernah di-log). Non-diagnosis.
+ * SATUSEHAT / FHIR (backlog · SS-1) — rakit Bundle FHIR R4 dari Dexie profil aktif (biomarker +
+ * wearable + obat + identitas) via engine murni @arta/core, lalu ekspor sebagai berkas .json.
+ * OFFLINE: berkas dibuat DI PERANGKAT (Blob), tak ada unggah. Sinkronisasi jaringan SATUSEHAT
+ * (SS-2) butuh kredensial organisasi → menyusul. Data kesehatan T1 (tak pernah di-log). Non-diagnosis.
  */
 
 /** Bangun Bundle FHIR dari data profil aktif (subjek = "Saya"). */
 export async function buildProfileBundle(nowMs = Date.now()): Promise<FhirBundle> {
   const pid = await getActiveProfileId();
-  const [members, readings, meds, nameMeta] = await Promise.all([
+  const [members, readings, meds, nameMeta, rollups] = await Promise.all([
     db.family_members.toArray(),
     db.biomarker_readings.toArray(),
     db.medications.toArray(),
     db.meta.get("displayName"),
+    wearableDailyRollup(),
   ]);
   const mine = <T extends { profileId: string; deletedAt: string | null }>(rows: T[]): T[] =>
     rows.filter((r) => r.profileId === pid && !r.deletedAt);
@@ -31,6 +34,9 @@ export async function buildProfileBundle(nowMs = Date.now()): Promise<FhirBundle
     biomarker: r.biomarker, context: r.context ?? null,
     values: r.values as Record<string, number>, measuredAt: r.measuredAt,
   }));
+  const wearables: FhirWearableInput[] = rollups.map((r) => ({
+    type: r.type, value: r.value, day: r.day, unit: r.unit,
+  }));
   const medications: FhirMedicationInput[] = mine(meds).map((m) => ({
     name: m.name, dosage: m.dosage ?? null, isActive: m.isActive, since: m.createdAt ?? null,
   }));
@@ -41,7 +47,7 @@ export async function buildProfileBundle(nowMs = Date.now()): Promise<FhirBundle
       sex: subject?.sex ?? null,
       birthDate: subject?.dob ?? null,
     },
-    biomarkers, medications,
+    biomarkers, wearables, medications,
     timestamp: new Date(nowMs).toISOString(),
   });
 }

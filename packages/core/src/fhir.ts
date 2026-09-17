@@ -60,11 +60,15 @@ const URIC_METRIC: Metric = { code: "3084-1", display: "Asam urat", unit: "mg/dL
 const qty = (value: number, m: Metric): FhirQuantity =>
   ({ value, unit: m.unit, system: UCUM, code: m.ucum });
 
-const labCategory = (kind: "vital-signs" | "laboratory"): FhirCodeableConcept[] =>
-  [{ coding: [{ system: OBS_CATEGORY, code: kind, display: kind === "vital-signs" ? "Vital Signs" : "Laboratory" }] }];
+type ObsCategory = "vital-signs" | "laboratory" | "activity";
+const CATEGORY_DISPLAY: Record<ObsCategory, string> = {
+  "vital-signs": "Vital Signs", laboratory: "Laboratory", activity: "Activity",
+};
+const labCategory = (kind: ObsCategory): FhirCodeableConcept[] =>
+  [{ coding: [{ system: OBS_CATEGORY, code: kind, display: CATEGORY_DISPLAY[kind] }] }];
 
 const obs = (
-  category: "vital-signs" | "laboratory", code: FhirCodeableConcept, effectiveDateTime: string,
+  category: ObsCategory, code: FhirCodeableConcept, effectiveDateTime: string,
   extra: Record<string, unknown>,
 ): FhirResource => ({
   resourceType: "Observation", status: "final",
@@ -122,6 +126,37 @@ export function biomarkerToObservations(b: FhirBiomarkerInput): FhirResource[] {
       : []);
 }
 
+// ---- Observation (wearable) ----
+
+interface WearableObs { code: string; display: string; category: ObsCategory; unit: string; ucum: string }
+/** LOINC/UCUM per metrik wearable harian. Stage tidur (sleep_light/deep/rem) TIDAK dipetakan
+ *  (total `sleep` sudah mewakili; hindari dobel di record). */
+const WEARABLE_OBS: Record<string, WearableObs> = {
+  steps: { code: "41950-7", display: "Jumlah langkah 24 jam", category: "activity", unit: "langkah", ucum: "{steps}" },
+  heart_rate: { code: "8867-4", display: "Detak jantung", category: "vital-signs", unit: "denyut/menit", ucum: "/min" },
+  sleep: { code: "93832-4", display: "Durasi tidur", category: "activity", unit: "menit", ucum: "min" },
+  active_energy: { code: "41981-2", display: "Kalori terbakar", category: "activity", unit: "kkal", ucum: "kcal" },
+  weight: { code: "29463-7", display: "Berat badan", category: "vital-signs", unit: "kg", ucum: "kg" },
+  spo2: { code: "59408-5", display: "Saturasi oksigen (SpO₂)", category: "vital-signs", unit: "%", ucum: "%" },
+};
+
+export interface FhirWearableInput {
+  type: string;      // steps|heart_rate|sleep|active_energy|weight|spo2 (stage tidur diabaikan)
+  value: number;
+  day: string;       // "YYYY-MM-DD" (rollup harian)
+  unit?: string;
+}
+
+/** Petakan satu rollup wearable harian → Observation FHIR, atau null bila tipe tak didukung/nilai invalid. */
+export function wearableToObservation(w: FhirWearableInput): FhirResource | null {
+  const m = WEARABLE_OBS[w.type];
+  if (!m || typeof w.value !== "number" || !Number.isFinite(w.value)) return null;
+  return obs(m.category,
+    { coding: [{ system: LOINC, code: m.code, display: m.display }], text: m.display },
+    `${w.day}T00:00:00`,
+    { valueQuantity: { value: w.value, unit: w.unit || m.unit, system: UCUM, code: m.ucum } });
+}
+
 // ---- MedicationStatement ----
 
 export interface FhirMedicationInput {
@@ -149,13 +184,15 @@ export function medicationToStatement(m: FhirMedicationInput): FhirResource | nu
 export interface FhirBundleInput {
   patient?: FhirPatientInput | null;
   biomarkers?: FhirBiomarkerInput[];
+  wearables?: FhirWearableInput[];
   medications?: FhirMedicationInput[];
   timestamp?: string;  // default: now
 }
 
 /**
- * Rakit Bundle FHIR (type collection) dari data ArtaHealth. Urutan deterministik:
- * Patient dulu, lalu Observation (urut waktu naik), lalu MedicationStatement.
+ * Rakit Bundle FHIR (type collection) dari data ArtaHealth. Urutan deterministik: Patient dulu,
+ * lalu Observation biomarker (urut waktu), lalu Observation wearable (urut hari lalu tipe), lalu
+ * MedicationStatement.
  */
 export function buildFhirBundle(input: FhirBundleInput): FhirBundle {
   const entry: Array<{ resource: FhirResource }> = [];
@@ -166,6 +203,13 @@ export function buildFhirBundle(input: FhirBundleInput): FhirBundle {
     .sort((a, b) => a.measuredAt.localeCompare(b.measuredAt))
     .flatMap(biomarkerToObservations);
   for (const resource of obsList) entry.push({ resource });
+
+  const wearList = (input.wearables ?? [])
+    .slice()
+    .sort((a, b) => a.day.localeCompare(b.day) || a.type.localeCompare(b.type))
+    .map(wearableToObservation)
+    .filter((r): r is FhirResource => r != null);
+  for (const resource of wearList) entry.push({ resource });
 
   for (const med of input.medications ?? []) {
     const r = medicationToStatement(med);

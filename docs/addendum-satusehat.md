@@ -54,6 +54,7 @@ Data ArtaHealth (Dexie: biomarker, obat, imunisasi, profil)
 | Glukosa (gdp/gds/pp2/hba1c) | `Observation` (laboratory) | LOINC 1558-6 / 2339-0 / 1521-4 / 4548-4; `mg/dL` atau `%` |
 | Lipid (total/LDL/HDL/TG) | `Observation` ×N (laboratory) | LOINC 2093-3 / 2089-1 / 2085-9 / 2571-8; `mg/dL` |
 | Asam urat | `Observation` (laboratory) | LOINC 3084-1; `mg/dL` |
+| Wearable harian (langkah/detak/tidur/energi/berat/SpO₂) | `Observation` (activity/vital-signs) | LOINC 41950-7 / 8867-4 / 93832-4 / 41981-2 / 29463-7 / 59408-5; UCUM `{steps}`/`/min`/`min`/`kcal`/`kg`/`%` (stage tidur tak dipetakan) |
 | Obat | `MedicationStatement` | `medicationCodeableConcept.text` (nama bebas) + `dosage.text` |
 | Imunisasi | `Immunization` | **DITUNDA** — butuh concept map ke CVX/SATUSEHAT + verifikasi |
 
