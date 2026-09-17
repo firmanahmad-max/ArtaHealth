@@ -170,8 +170,8 @@ export default function Dashboard() {
   const kesehatanCards = [
     featureBiomarker() && <RiskPanelCard key="risk" onLog={() => setSheetOpen(true)} />,
     featureEarlyWarning() && <EarlyWarningCard key="ew" />,
-    featureMonthlyInsight() && <MonthlyInsightCard key="monthly" />,
-    featureWhatIf() && <WhatIfCard key="whatif" />,
+    featureMonthlyInsight() && <MonthlyInsightCard key="monthly" onLog={() => setSheetOpen(true)} />,
+    featureWhatIf() && <WhatIfCard key="whatif" onLog={() => setSheetOpen(true)} />,
     featureRppg() && <PulseCheckCard key="rppg" />,
     featureCycle() && <CycleCard key="cycle" />,
     featureImmunization() && <ImmunizationCard key="imm" />,

@@ -13,7 +13,7 @@ import { db } from "@/lib/db";
  * memotivasi, bukan janji medis. Flag NEXT_PUBLIC_FEATURE_WHATIF.
  */
 
-export function WhatIfCard() {
+export function WhatIfCard({ onLog }: { onLog?: () => void } = {}) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   // Baseline ikut segar saat ada catatan baru.
@@ -24,8 +24,34 @@ export function WhatIfCard() {
     return c.join(",");
   }, []);
   const baseline = useLiveQuery<DayInputs | undefined>(() => whatIfBaseline(), [dep]);
+  // whatIfBaseline SELALU mengembalikan default (mis. tidur 6j) walau tak ada catatan → deteksi
+  // apakah ada catatan asli agar tak memproyeksikan "hari khas" palsu; kosong → empty-state memandu.
+  const totalLogs = useLiveQuery(async () => {
+    const c = await Promise.all([
+      db.sleep_logs.count(), db.hydration_logs.count(), db.activity_logs.count(), db.mood_logs.count(),
+    ]);
+    return c.reduce((a, b) => a + b, 0);
+  }, []);
 
-  if (!baseline) return null;
+  if (baseline === undefined || totalLogs === undefined) return null; // memuat
+
+  // Empty-state MEMANDU (KR-2): belum ada catatan asli → ajak mulai, jangan proyeksi dari default.
+  if (totalLogs === 0) {
+    return (
+      <div style={card}>
+        <div>
+          <p style={{ fontSize: 13, fontWeight: 700, color: "var(--ah-text-primary)" }}>🔮 Bagaimana Jika</p>
+          <p style={{ fontSize: 11, color: "var(--ah-text-tertiary)", marginTop: 2 }}>
+            Lihat perkiraan Health Score jika kebiasaan berubah — butuh beberapa hari catatan dulu.
+          </p>
+        </div>
+        <p style={{ fontSize: 12, color: "var(--ah-text-secondary)", lineHeight: 1.5 }}>
+          Catat tidur, minum, atau aktivitas beberapa hari agar ada &ldquo;hari khas&rdquo; untuk diproyeksikan.
+        </p>
+        {onLog && <button onClick={onLog} style={emptyCta}>Catat hari ini</button>}
+      </div>
+    );
+  }
 
   const chosen = WHATIF_PRESETS.filter((p) => selected.has(p.key));
   const proj = projectScore(baseline, combineLevers(chosen));
@@ -94,6 +120,10 @@ export function WhatIfCard() {
 const card: React.CSSProperties = {
   background: "var(--ah-surface-1)", border: "1px solid var(--ah-border)",
   borderRadius: "var(--ah-r-card)", padding: 14, display: "flex", flexDirection: "column", gap: 12,
+};
+const emptyCta: React.CSSProperties = {
+  alignSelf: "flex-start", minHeight: 36, padding: "0 14px", borderRadius: "var(--ah-r-full)",
+  border: "none", cursor: "pointer", background: "var(--ah-accent)", color: "#fff", fontSize: 12.5, fontWeight: 700,
 };
 const scoreNum: React.CSSProperties = { fontSize: 30, fontWeight: 800, color: "var(--ah-text-primary)", lineHeight: 1, fontVariantNumeric: "tabular-nums" };
 const scoreCap: React.CSSProperties = { fontSize: 9.5, color: "var(--ah-text-tertiary)", marginTop: 3 };
