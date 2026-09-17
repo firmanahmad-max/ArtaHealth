@@ -7,6 +7,8 @@ import {
   BADGES, XP_RULES, type PlayerActivity, type TodayCounts,
 } from "@arta/core";
 import { playerActivity, todayCounts, persistedAchievements, grantAchievements } from "@/lib/gamification";
+import { personalLeaderboard } from "@/lib/leaderboard";
+import { featureLeaderboard } from "@/lib/features";
 import { db } from "@/lib/db";
 
 /**
@@ -123,6 +125,9 @@ export function GamificationCard() {
         </div>
       </div>
 
+      {/* Papan poin mingguan (LB-1) — dilebur ke sini agar tak dobel sistem poin (Fase 8 konsolidasi) */}
+      {featureLeaderboard() && <WeeklyPointsSection />}
+
       {activity.currentStreak > 0 && (
         <p style={{ fontSize: 11, color: "var(--ah-text-tertiary)" }}>
           🔥 Streak berjalan {activity.currentStreak} hari (+{activity.currentStreak * XP_RULES.streakDay} XP). Jaga terus!
@@ -135,6 +140,61 @@ export function GamificationCard() {
   );
 }
 
+const DIR: Record<"up" | "down" | "flat", { icon: string; color: string; word: string }> = {
+  up: { icon: "▲", color: "var(--ah-score-excellent)", word: "naik" },
+  down: { icon: "▼", color: "var(--ah-score-low)", word: "turun" },
+  flat: { icon: "▬", color: "var(--ah-text-tertiary)", word: "sama" },
+};
+const weekLabel = (iso: string): string =>
+  new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "short" });
+
+/** Poin aktivitas mingguan (LB-1) sebagai SECTION di Petualangan Sehat — satu rumah gamifikasi. */
+function WeeklyPointsSection() {
+  const data = useLiveQuery(() => personalLeaderboard(), []);
+  if (!data || !data.hasData) return null;
+  const max = Math.max(1, ...data.weeks.map((w) => w.points));
+  const dir = DIR[data.momentum.direction];
+  const activeWeeks = data.weeks.filter((w) => w.events > 0).length;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <p style={sectionLabel}>Papan poin mingguan</p>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <p style={{ fontSize: 20, fontWeight: 800, color: "var(--ah-text-primary)", lineHeight: 1 }}>
+          {data.momentum.current?.points ?? 0}
+          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--ah-text-tertiary)" }}> poin · minggu ini</span>
+        </p>
+        <div style={{ ...pill, color: dir.color }}>{dir.icon} {Math.abs(data.momentum.delta)} {dir.word}</div>
+        {data.momentum.isPersonalBest && <div style={{ ...pill, color: "var(--ah-score-excellent)" }}>⭐ rekor!</div>}
+      </div>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 52 }}>
+        {data.weeks.map((w, i) => {
+          const isCurrent = i === data.weeks.length - 1;
+          const isBest = data.best != null && w.weekKey === data.best.weekKey && w.points > 0;
+          const h = Math.round((w.points / max) * 44) + 4;
+          const color = isCurrent ? "var(--ah-accent)" : isBest ? "var(--ah-score-excellent)" : "var(--ah-surface-3, var(--ah-border))";
+          return (
+            <div key={w.weekKey} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}
+              title={`Minggu ${weekLabel(w.weekStartISO)}: ${w.points} poin`}>
+              <div style={{ width: "100%", height: h, background: color, borderRadius: 4 }} />
+              <span style={{ fontSize: 8, color: "var(--ah-text-tertiary)" }}>{weekLabel(w.weekStartISO)}</span>
+            </div>
+          );
+        })}
+      </div>
+      <p style={{ fontSize: 10.5, color: "var(--ah-text-tertiary)" }}>
+        {data.momentum.rankAmongWeeks != null
+          ? `Minggu ini peringkat ${data.momentum.rankAmongWeeks} dari ${activeWeeks} minggu aktifmu.`
+          : "Terus catat aktivitas untuk membangun momentum."}
+        {data.best != null && data.best.points > 0 && ` Rekor: ${data.best.points} poin (${weekLabel(data.best.weekStartISO)}).`}
+      </p>
+    </div>
+  );
+}
+
+const pill: React.CSSProperties = {
+  fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: "var(--ah-r-full)",
+  background: "var(--ah-surface-2)", border: "1px solid var(--ah-border)",
+};
 const card: React.CSSProperties = {
   background: "var(--ah-surface-1)", border: "1px solid var(--ah-border)",
   borderRadius: "var(--ah-r-card)", padding: 14, display: "flex", flexDirection: "column", gap: 14,

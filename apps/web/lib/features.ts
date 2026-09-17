@@ -176,7 +176,8 @@ export const featureFocus = (): boolean =>
  * minggu-minggu lalumu (rekor pribadi + momentum) via engine deterministik @arta/core, 100% lokal.
  * Poin turunan dari aktivitas (XP_RULES), bukan nilai kesehatan. Papan SOSIAL (bandingkan dgn orang
  * lain) = LB-3 di balik gerbang privasi + backend (docs/addendum-leaderboard.md §3/§6).
- * Dev: set NEXT_PUBLIC_FEATURE_LEADERBOARD=1 di .env.local.
+ * Fase 8 konsolidasi: "Papan poin mingguan" jadi SECTION di dalam Petualangan Sehat (Gamification),
+ * bukan kartu terpisah → kini butuh featureGamification juga aktif. Dev: NEXT_PUBLIC_FEATURE_LEADERBOARD=1.
  */
 export const featureLeaderboard = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_LEADERBOARD === "1";
