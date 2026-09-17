@@ -2,11 +2,14 @@
 import { useEffect, useState } from "react";
 import type { FocusItem, FocusTone } from "@arta/core";
 import { todayFocusItems } from "@/lib/today-focus";
+import { buildInsightContext, hasEnoughData } from "@/lib/insight";
 import { useMounted } from "@/lib/useMounted";
 
 /**
- * Fokus Hari Ini (Fase 8 · KR-1) — kartu ringkas di atas Beranda: 1–3 ajakan/insight harian
- * deterministik untuk retensi & aktivasi. Non-medis. Flag NEXT_PUBLIC_FEATURE_FOCUS.
+ * Fokus Hari Ini (Fase 8 · KR-1) — panduan harian deterministik di atas Beranda. Konsolidasi:
+ * SALING-MELENGKAPI dengan "Insight hari ini" (AI). Saat Insight tampil (data cukup) kartu ini
+ * menyusut ke item kritis-waktu saja (rentetan di ambang putus); saat Insight absen (data minim/
+ * AI mati) kartu ini jadi panduan penuh (1–3 item). Non-medis. Flag NEXT_PUBLIC_FEATURE_FOCUS.
  */
 
 const TONE: Record<FocusTone, { color: string; bg: string }> = {
@@ -21,7 +24,13 @@ export function TodayFocusCard() {
 
   useEffect(() => {
     if (!mounted) return;
-    void todayFocusItems().then(setItems);
+    void (async () => {
+      const [all, { context }] = await Promise.all([todayFocusItems(), buildInsightContext()]);
+      // Insight AI tampil bila data cukup → di sini sisakan hanya item kritis-waktu (rentetan)
+      // agar tak dobel; Insight absen → panduan penuh.
+      const shown = hasEnoughData(context) ? all.filter((i) => i.id === "streak") : all;
+      setItems(shown);
+    })();
   }, [mounted]);
 
   if (!items || items.length === 0) return null;
