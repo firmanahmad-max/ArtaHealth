@@ -14,6 +14,7 @@ import { InsightCard } from "@/components/InsightCard";
 import { PushToggle } from "@/components/PushToggle";
 import { RiskPanelCard } from "@/components/RiskPanelCard";
 import { TodayFocusCard } from "@/components/TodayFocusCard";
+import { DashboardSection } from "@/components/DashboardSection";
 import { RamadanHeader } from "@/components/RamadanHeader";
 import { FastingToggle } from "@/components/FastingToggle";
 import { ImsakiyahCard } from "@/components/ImsakiyahCard";
@@ -164,6 +165,34 @@ export default function Dashboard() {
   const latestMood = inputs.mood;
   const pending = (t: string) => (pendingTables?.has(t as never) ?? false) && syncEnabled;
 
+  // KR-3: kelompokkan kartu berfitur ke bagian berlabel. Kondisi flag & isi kartu tak berubah;
+  // hanya pengelompokan + urutan. "Alat & Data" (sekunder) bisa dilipat untuk memangkas scroll.
+  const kesehatanCards = [
+    featureBiomarker() && <RiskPanelCard key="risk" onLog={() => setSheetOpen(true)} />,
+    featureEarlyWarning() && <EarlyWarningCard key="ew" />,
+    featureMonthlyInsight() && <MonthlyInsightCard key="monthly" />,
+    featureWhatIf() && <WhatIfCard key="whatif" />,
+    featureRppg() && <PulseCheckCard key="rppg" />,
+    featureCycle() && <CycleCard key="cycle" />,
+    featureImmunization() && <ImmunizationCard key="imm" />,
+    featureVault() && <VaultCard key="vault" />,
+    featureMedication() && <MedicationCard key="med" />,
+    featureNutrition() && <AllergyCard key="allergy" />,
+    featureNutrition() && <EaterCard key="eater" />,
+    featureNutrition() && <NutritionScanCard key="nutriscan" />,
+    featureFoodDiary() && <FoodDiaryCard key="food" />,
+    featureFoodDiary() && <MenuPlannerCard key="menu" />,
+    featureConsultation() && <ConsultationReportCard key="consult" />,
+    featureCekKlaim() && <ClaimCheckCard key="claim" />,
+  ].filter(Boolean);
+  const alatCards = [
+    featureRadar() && <RadarSehatCard key="radar" />,
+    featureWearable() && <WearableCard key="wearable" />,
+    featureSatuSehat() && <SatuSehatCard key="satusehat" />,
+    featureFamily() && <FamilyCard key="family" />,
+    featureGamification() && <GamificationCard key="gami" />,
+  ].filter(Boolean);
+
   return (
     <>
       <main style={{ maxWidth: 400, margin: "0 auto", padding: "16px 16px 96px", display: "flex", flexDirection: "column", gap: 12 }}>
@@ -261,49 +290,19 @@ export default function Dashboard() {
 
         <InsightCard />
 
-        {featureBiomarker() && <RiskPanelCard onLog={() => setSheetOpen(true)} />}
-
-        {featureEarlyWarning() && <EarlyWarningCard />}
-
-        {featureRppg() && <PulseCheckCard />}
-
-        {featureConsultation() && <ConsultationReportCard />}
-
-        {featureWhatIf() && <WhatIfCard />}
-
-        {featureMonthlyInsight() && <MonthlyInsightCard />}
-
-        {featureImmunization() && <ImmunizationCard />}
-
-        {featureCycle() && <CycleCard />}
-
-        {featureCekKlaim() && <ClaimCheckCard />}
-
-        {featureRadar() && <RadarSehatCard />}
-
-        {featureWearable() && <WearableCard />}
-
-        {featureSatuSehat() && <SatuSehatCard />}
-
-        {featureVault() && <VaultCard />}
-
-        {featureMedication() && <MedicationCard />}
-
-        {featureNutrition() && <AllergyCard />}
-
-        {featureNutrition() && <EaterCard />}
-
-        {featureNutrition() && <NutritionScanCard />}
-
-        {featureFoodDiary() && <FoodDiaryCard />}
-
-        {featureFoodDiary() && <MenuPlannerCard />}
-
-        {featureFamily() && <FamilyCard />}
-
-        {featureGamification() && <GamificationCard />}
-
         <HabitCard />
+
+        {kesehatanCards.length > 0 && (
+          <DashboardSection title="Kesehatan" count={kesehatanCards.length}>
+            {kesehatanCards}
+          </DashboardSection>
+        )}
+
+        {alatCards.length > 0 && (
+          <DashboardSection title="Alat & Data" count={alatCards.length} collapsible defaultCollapsed storageKey="ah-sec-alat">
+            {alatCards}
+          </DashboardSection>
+        )}
 
         <PushToggle />
       </main>
