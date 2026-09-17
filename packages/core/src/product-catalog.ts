@@ -89,11 +89,12 @@ export function buildCatalog(contributions: CatalogContribution[]): CatalogEntry
   const entries: CatalogEntry[] = [];
   for (const [key, rows] of groups) {
     const latest = rows.slice().sort((a, b) => a.at.localeCompare(b.at))[rows.length - 1]!;
+    const nutrition = consensusNutrition(rows.map((r) => r.nutrition));
     entries.push({
       key,
       displayName: latest.displayName.trim(),
-      foodForm: consensusNutrition(rows.map((r) => r.nutrition)).foodForm,
-      nutrition: consensusNutrition(rows.map((r) => r.nutrition)),
+      foodForm: nutrition.foodForm,
+      nutrition,
       contributions: rows.length,
       updatedAt: latest.at,
     });
