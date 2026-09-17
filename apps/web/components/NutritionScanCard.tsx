@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useToast } from "@arta/design-system";
 import {
-  dailyBudget, detectAllergens,
+  dailyBudget, detectAllergens, normalizeProductKey,
   type NutritionInput, type NutritionVerdict, type NutritionZone,
   type NutritionCondition, type Nutrient, type AllergenMatch, type SelectedAllergen,
 } from "@arta/core";
@@ -435,10 +435,18 @@ function ComparePanel({ a, b, conditions, onClose }: {
 function Lemari({ products, onLoad, onRemove }: {
   products: LocalSavedProduct[]; onLoad: (p: LocalSavedProduct) => void; onRemove: (id: string) => void;
 }) {
+  // Cari produk tersimpan (pakai normalisasi kunci @arta/core agar varian ukuran/kapital cocok).
+  // Muncul saat lemari cukup banyak → pakai ulang tanpa scan ulang, tanpa kartu Katalog terpisah.
+  const [q, setQ] = useState("");
+  const nq = normalizeProductKey(q);
+  const shown = nq ? products.filter((p) => normalizeProductKey(p.productName).includes(nq)) : products;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6, background: "var(--ah-surface-2)", borderRadius: "var(--ah-r-inner)", padding: 10 }}>
       <p style={sectionLabel}>🗄️ Lemari produk</p>
-      {products.map((p) => {
+      {products.length > 4 && (
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari produk tersimpan…" aria-label="Cari produk tersimpan" style={lemariSearch} />
+      )}
+      {shown.map((p) => {
         const v = p.lastVerdict as NutritionVerdict | null;
         return (
           <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
@@ -449,9 +457,15 @@ function Lemari({ products, onLoad, onRemove }: {
           </div>
         );
       })}
+      {shown.length === 0 && <p style={{ fontSize: 11, color: "var(--ah-text-tertiary)" }}>Tak ada produk cocok &ldquo;{q}&rdquo;.</p>}
     </div>
   );
 }
+
+const lemariSearch: React.CSSProperties = {
+  minHeight: 34, borderRadius: "var(--ah-r-inner)", border: "1px solid var(--ah-border)",
+  background: "var(--ah-surface-1)", color: "var(--ah-text-primary)", padding: "0 10px", fontSize: 12.5,
+};
 
 function BudgetBar({ label, unit, used, impact, budget, primary }: {
   label: string; unit: string; used: number; impact: number; budget: number; primary: boolean;
