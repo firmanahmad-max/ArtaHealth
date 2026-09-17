@@ -10,7 +10,7 @@ import { db } from "@/lib/db";
  * NEXT_PUBLIC_FEATURE_MONTHLY.
  */
 
-export function MonthlyInsightCard() {
+export function MonthlyInsightCard({ onLog }: { onLog?: () => void } = {}) {
   const dep = useLiveQuery(async () => {
     const c = await Promise.all([
       db.sleep_logs.count(), db.hydration_logs.count(), db.activity_logs.count(), db.mood_logs.count(),
@@ -53,9 +53,12 @@ export function MonthlyInsightCard() {
             </p>
           ))
         ) : (
-          <p style={{ fontSize: 11.5, color: "var(--ah-text-tertiary)", lineHeight: 1.45 }}>
-            Belum ada pola cukup kuat. Catat rutin (≥8 hari beririsan) agar pola muncul.
-          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-start" }}>
+            <p style={{ fontSize: 11.5, color: "var(--ah-text-tertiary)", lineHeight: 1.45 }}>
+              Belum ada pola cukup kuat. Catat rutin (≥8 hari beririsan) agar pola muncul.
+            </p>
+            {onLog && <button onClick={onLog} style={emptyCta}>Catat hari ini</button>}
+          </div>
         )}
       </div>
 
@@ -66,6 +69,10 @@ export function MonthlyInsightCard() {
   );
 }
 
+const emptyCta: React.CSSProperties = {
+  minHeight: 34, padding: "0 14px", borderRadius: "var(--ah-r-full)", border: "none", cursor: "pointer",
+  background: "var(--ah-accent)", color: "#fff", fontSize: 12, fontWeight: 700,
+};
 const card: React.CSSProperties = {
   background: "var(--ah-surface-1)", border: "1px solid var(--ah-border)",
   borderRadius: "var(--ah-r-card)", padding: 14, display: "flex", flexDirection: "column", gap: 12,
