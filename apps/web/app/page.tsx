@@ -15,6 +15,7 @@ import { PushToggle } from "@/components/PushToggle";
 import { RiskPanelCard } from "@/components/RiskPanelCard";
 import { TodayFocusCard } from "@/components/TodayFocusCard";
 import { DashboardSection } from "@/components/DashboardSection";
+import { WhatsNewCard } from "@/components/WhatsNewCard";
 import { RamadanHeader } from "@/components/RamadanHeader";
 import { FastingToggle } from "@/components/FastingToggle";
 import { ImsakiyahCard } from "@/components/ImsakiyahCard";
@@ -42,7 +43,7 @@ import { ClaimCheckCard } from "@/components/ClaimCheckCard";
 import { RadarSehatCard } from "@/components/RadarSehatCard";
 import { WearableCard } from "@/components/WearableCard";
 import { SatuSehatCard } from "@/components/SatuSehatCard";
-import { featureBiomarker, featureRamadan, featureMedication, featureNutrition, featureFoodDiary, featureVault, featureFamily, featureGamification, featureEarlyWarning, featureRppg, featureConsultation, featureWhatIf, featureMonthlyInsight, featureImmunization, featureCycle, featureCekKlaim, featureRadar, featureWearable, featureSatuSehat, featureFocus } from "@/lib/features";
+import { featureBiomarker, featureRamadan, featureMedication, featureNutrition, featureFoodDiary, featureVault, featureFamily, featureGamification, featureEarlyWarning, featureRppg, featureConsultation, featureWhatIf, featureMonthlyInsight, featureImmunization, featureCycle, featureCekKlaim, featureRadar, featureWearable, featureSatuSehat, featureFocus, featureWhatsNew } from "@/lib/features";
 import { isScheduledOn, isoWeekdayOf } from "@arta/core";
 import { todayKey } from "@/lib/habits";
 import { isFastingToday } from "@/lib/fasting";
@@ -289,6 +290,8 @@ export default function Dashboard() {
         {featureFocus() && <TodayFocusCard />}
 
         <InsightCard />
+
+        {featureWhatsNew() && <WhatsNewCard />}
 
         <HabitCard />
 

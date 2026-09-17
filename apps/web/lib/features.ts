@@ -163,6 +163,14 @@ export const featureVoice = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_VOICE === "1";
 
 /**
+ * "Apa Baru" (Fase 8 · KR-4). Default OFF. Kartu dismissible yang memperkenalkan fitur yang baru
+ * dinyalakan ke pengguna lama; hanya menampilkan entri yang flag-nya aktif; disembunyikan permanen
+ * setelah "Mengerti" (localStorage per-versi). Non-medis. Dev: set NEXT_PUBLIC_FEATURE_WHATSNEW=1.
+ */
+export const featureWhatsNew = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_WHATSNEW === "1";
+
+/**
  * Fokus Hari Ini (Fase 8 · KR-1 Konsolidasi & Retensi). Default OFF. Mesin DETERMINISTIK menyarikan
  * 1–3 hal paling relevan hari ini (rentetan di ambang putus, aktivasi skor pertama, log inti belum,
  * kekurangan hidrasi, rayakan bila lengkap) dari data yang sudah ada. Non-medis (ajakan mencatat).
