@@ -1,8 +1,9 @@
 /**
  * Wearable / Health Connect (V3-7 · WR-1) — engine DETERMINISTIK untuk data pasif dari
- * perangkat: dedup sampel, rollup harian per metrik, & pemilihan sumber (wearable vs manual)
- * agar tak dobel-hitung di skor. Pengambilan native (Health Connect/HealthKit) = WR-2 (butuh
- * Capacitor + device). Lapisan ini murni & teruji; agnostik sumber. Non-medis.
+ * perangkat: dedup sampel, rollup harian per metrik, pemilihan sumber (wearable vs manual) agar
+ * tak dobel-hitung di skor, deret tren, serta IMPOR non-native (WR-1b: CSV/JSON sederhana +
+ * konverter Google Fit Takeout daily-metrics & sesi tidur/stage). Pengambilan native (Health
+ * Connect/HealthKit) = WR-2 (butuh Capacitor + device). Lapisan ini murni & teruji. Non-medis.
  */
 
 export type WearableType =
@@ -218,7 +219,9 @@ export function parseWearableImport(text: string): WearableImportResult {
 interface GfitMetric { type: WearableType; unit: string; match: (h: string) => boolean }
 const GFIT_METRICS: GfitMetric[] = [
   { type: "steps", unit: "count", match: (h) => h.includes("step count") || h === "steps" },
-  { type: "active_energy", unit: "kcal", match: (h) => h.includes("calories") },
+  // CATATAN: "Calories" Google Fit daily = ENERGI TOTAL (termasuk BMR), bukan energi aktif →
+  // SENGAJA tak dipetakan agar tak menyesatkan (kartu berlabel "Energi aktif"). Pengguna yg punya
+  // energi aktif sungguhan bisa mengimpornya lewat format sederhana (kolom type=active_energy).
   // "average" spesifik → hindari tertukar dgn Max/Min heart rate atau Heart Points/Minutes & Max/Min weight
   { type: "heart_rate", unit: "bpm", match: (h) => h.includes("average heart rate") },
   { type: "weight", unit: "kg", match: (h) => h.includes("average weight") },

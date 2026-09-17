@@ -131,7 +131,7 @@ describe("parseGoogleFitDailyCsv (konverter Takeout)", () => {
     expect(skipped).toBe(0);
     const by = Object.fromEntries(samples.map((s) => [s.type, s]));
     expect(by.steps).toMatchObject({ value: 8532, unit: "count", startAt: "2026-09-01T00:00:00", source: "health_connect", externalId: "gfit-steps-2026-09-01" });
-    expect(by.active_energy).toMatchObject({ value: 2100.5, unit: "kcal" });
+    expect(by.active_energy).toBeUndefined();  // "Calories" Fit daily = total (incl. BMR), sengaja tak dipetakan
     expect(by.heart_rate!.value).toBe(64);   // AVERAGE, bukan Max 140
     expect(by.weight!.value).toBe(70.2);      // AVERAGE, bukan Max 71
   });
