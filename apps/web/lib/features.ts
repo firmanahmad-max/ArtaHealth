@@ -163,6 +163,15 @@ export const featureVoice = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_VOICE === "1";
 
 /**
+ * Fokus Hari Ini (Fase 8 · KR-1 Konsolidasi & Retensi). Default OFF. Mesin DETERMINISTIK menyarikan
+ * 1–3 hal paling relevan hari ini (rentetan di ambang putus, aktivasi skor pertama, log inti belum,
+ * kekurangan hidrasi, rayakan bila lengkap) dari data yang sudah ada. Non-medis (ajakan mencatat).
+ * Dev: set NEXT_PUBLIC_FEATURE_FOCUS=1 di .env.local.
+ */
+export const featureFocus = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_FOCUS === "1";
+
+/**
  * Leaderboard (backlog · LB-1). Default OFF. Papan PRIBADI-temporal: poin aktivitas mingguanmu vs
  * minggu-minggu lalumu (rekor pribadi + momentum) via engine deterministik @arta/core, 100% lokal.
  * Poin turunan dari aktivitas (XP_RULES), bukan nilai kesehatan. Papan SOSIAL (bandingkan dgn orang
