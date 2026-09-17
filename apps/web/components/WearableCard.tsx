@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { WEARABLE_LABEL, latestRollupDay, wearableDaySeries, type DailyRollup, type WearableType } from "@arta/core";
-import { isWearableNativeReady, wearableDailyRollup, importWearableText } from "@/lib/wearable";
+import { isWearableNativeReady, wearableDailyRollup, importWearableText, clearWearableData } from "@/lib/wearable";
 import { useMounted } from "@/lib/useMounted";
 
 /**
@@ -30,6 +30,7 @@ export function WearableCard() {
   const mounted = useMounted();
   const [all, setAll] = useState<DailyRollup[] | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const refresh = () => wearableDailyRollup().then(setAll);
@@ -62,6 +63,14 @@ export function WearableCard() {
     } finally {
       if (fileRef.current) fileRef.current.value = "";
     }
+  };
+
+  const onClear = async () => {
+    if (!confirmClear) { setConfirmClear(true); return; }
+    setConfirmClear(false);
+    const n = await clearWearableData();
+    await refresh();
+    setStatus(n > 0 ? `Data wearable dihapus (${n} sampel).` : "Tak ada data wearable untuk dihapus.");
   };
 
   const nativeReady = mounted && isWearableNativeReady();
@@ -119,7 +128,14 @@ export function WearableCard() {
       {!nativeReady && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <input ref={fileRef} type="file" accept=".csv,.json,text/csv,application/json" onChange={onFile} multiple hidden />
-          <button onClick={() => fileRef.current?.click()} style={importBtn}>⬆️ Impor dari file (CSV/JSON)</button>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={() => fileRef.current?.click()} style={{ ...importBtn, flex: 1 }}>⬆️ Impor dari file (CSV/JSON)</button>
+            {hasData && (
+              <button onClick={onClear} onBlur={() => setConfirmClear(false)} style={{ ...importBtn, flex: "0 0 auto", color: confirmClear ? "var(--ah-score-low)" : "var(--ah-text-tertiary)", borderColor: confirmClear ? "var(--ah-score-low)" : "var(--ah-border)" }}>
+                {confirmClear ? "Yakin?" : "Reset"}
+              </button>
+            )}
+          </div>
           {status && <p style={{ fontSize: 10.5, color: "var(--ah-text-secondary)" }}>{status}</p>}
           <p style={{ fontSize: 9.5, color: "var(--ah-text-tertiary)", lineHeight: 1.45 }}>
             Terima file Google Fit (Takeout → "Daily activity metrics.csv" untuk langkah/detak/berat, atau file
