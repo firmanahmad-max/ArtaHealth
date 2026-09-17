@@ -81,7 +81,7 @@ export function WearableCard() {
       <div>
         <p style={{ fontSize: 13, fontWeight: 700, color: "var(--ah-text-primary)" }}>⌚ Perangkat & Wearable</p>
         <p style={{ fontSize: 11, color: "var(--ah-text-tertiary)", marginTop: 2 }}>
-          Langkah, tidur & detak — otomatis di Android (Health Connect), atau impor file di web.
+          Langkah, tidur & detak dari perangkatmu — impor dari file (mis. export Google Fit). Sinkron otomatis via aplikasi Android menyusul.
         </p>
       </div>
 
@@ -120,7 +120,7 @@ export function WearableCard() {
           <p style={{ fontSize: 11.5, color: "var(--ah-text-secondary)", lineHeight: 1.5 }}>
             {nativeReady
               ? "Belum ada data hari ini. Pastikan izin Health Connect aktif dan perangkat tersinkron."
-              : "Sinkronisasi otomatis tersedia di aplikasi Android. Di web, impor data dari file (CSV/JSON) untuk melihat rekap harianmu."}
+              : "Impor data dari file (CSV/JSON — mis. export Google Fit) untuk melihat rekap harianmu. Sinkronisasi otomatis lewat aplikasi Android akan hadir."}
           </p>
         </div>
       )}
