@@ -63,6 +63,20 @@ export async function importWearableText(text: string): Promise<{ imported: numb
   return { imported, skipped };
 }
 
+/**
+ * Hapus (tombstone) semua sampel wearable milik profil aktif → reversibilitas impor. Tombstone
+ * (deletedAt) ikut disinkron agar terhapus lintas-perangkat. Kembalikan jumlah yang dihapus.
+ */
+export async function clearWearableData(): Promise<number> {
+  const pid = await getActiveProfileId();
+  const rows = (await db.wearable_samples.toArray()).filter((r) => r.profileId === pid && !r.deletedAt);
+  if (rows.length === 0) return 0;
+  const now = new Date().toISOString();
+  await db.wearable_samples.bulkPut(rows.map((r) => ({ ...r, deletedAt: now, updatedAt: now })));
+  for (const r of rows) await enqueue(r.id);
+  return rows.length;
+}
+
 const toSample = (r: LocalWearableSample): WearableSample => ({
   externalId: r.externalId, type: r.type, value: r.value, unit: r.unit,
   startAt: r.startAt, endAt: r.endAt ?? undefined, source: r.source,
