@@ -182,11 +182,10 @@ export const featureLeaderboard = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_LEADERBOARD === "1";
 
 /**
- * Katalog Produk Komunal (backlog · KC-1). Default OFF. Cari produk yang pernah dipindai & pakai
- * ulang gizinya tanpa scan ulang (katalog LOKAL dari saved_products via engine deterministik
- * @arta/core: normalisasi identitas + konsensus median + cari). Verdict tetap personal di
- * perangkat. Berbagi komunal (baca/tulis termoderasi) = KC-2 (tunggu gerbang moderasi,
- * docs/addendum-katalog.md §3/§6). Dev: set NEXT_PUBLIC_FEATURE_CATALOG=1 di .env.local.
+ * Katalog Produk Komunal (backlog · KC). RESERVED untuk KC-2 (komunal termoderasi). KC-1 (kartu
+ * Katalog standalone) DILEBUR ke "Lemari produk" di Sadar Gizi (Fase 8 konsolidasi — hindari dobel
+ * dengan saved_products) → flag ini kini dorman sampai KC-2. Engine `@arta/core/product-catalog`
+ * (normalizeProductKey/consensus/cari) tetap dipakai (Lemari + fondasi KC-2). docs/addendum-katalog.md.
  */
 export const featureCatalog = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_CATALOG === "1";
