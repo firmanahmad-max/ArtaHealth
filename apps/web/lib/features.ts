@@ -163,6 +163,15 @@ export const featureVoice = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_VOICE === "1";
 
 /**
+ * Ringkasan Mingguan (Fase 8 · KR-5 retensi). Default OFF. Refleksi konsistensi mingguan (hari
+ * aktif, catatan, streak) + motivasi DETERMINISTIK (@arta/core weeklyRecap) — fokus konsistensi,
+ * bukan poin (tak dobel dgn Papan poin). Bahan untuk push mingguan (backend cron = menyusul).
+ * Non-medis. Dev: set NEXT_PUBLIC_FEATURE_WEEKLY_RECAP=1 di .env.local.
+ */
+export const featureWeeklyRecap = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_WEEKLY_RECAP === "1";
+
+/**
  * "Apa Baru" (Fase 8 · KR-4). Default OFF. Kartu dismissible yang memperkenalkan fitur yang baru
  * dinyalakan ke pengguna lama; hanya menampilkan entri yang flag-nya aktif; disembunyikan permanen
  * setelah "Mengerti" (localStorage per-versi). Non-medis. Dev: set NEXT_PUBLIC_FEATURE_WHATSNEW=1.
