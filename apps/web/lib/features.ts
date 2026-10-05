@@ -163,6 +163,15 @@ export const featureVoice = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_VOICE === "1";
 
 /**
+ * Ramadan Wrapped (Fase 9 · RW-1). Default OFF. Rekap akhir bulan puasa DETERMINISTIK (hari
+ * berpuasa, rentetan, % penyelesaian, tingkat+headline) dari fasting_days dlm rentang Ramadan
+ * (@arta/core ramadanWrapped). Delight/retensi musiman; inert di luar musim (sembunyi bila rentang
+ * Ramadan belum diatur). Non-medis & non-menghakimi. Dev: set NEXT_PUBLIC_FEATURE_RAMADAN_WRAPPED=1.
+ */
+export const featureRamadanWrapped = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_RAMADAN_WRAPPED === "1";
+
+/**
  * Ringkasan Mingguan (Fase 8 · KR-5 retensi). Default OFF. Refleksi konsistensi mingguan (hari
  * aktif, catatan, streak) + motivasi DETERMINISTIK (@arta/core weeklyRecap) — fokus konsistensi,
  * bukan poin (tak dobel dgn Papan poin). Bahan untuk push mingguan (backend cron = menyusul).
