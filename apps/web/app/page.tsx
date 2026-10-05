@@ -22,6 +22,7 @@ import { FastingToggle } from "@/components/FastingToggle";
 import { ImsakiyahCard } from "@/components/ImsakiyahCard";
 import { HydrationSessionTracker } from "@/components/HydrationSessionTracker";
 import { RamadanWrappedCard } from "@/components/RamadanWrappedCard";
+import { RamadanReadinessCard } from "@/components/RamadanReadinessCard";
 import { PreRamadanMedicalCard } from "@/components/PreRamadanMedicalCard";
 import { RamadanSetupCard } from "@/components/RamadanSetupCard";
 import { SunnahScheduleCard } from "@/components/SunnahScheduleCard";
@@ -45,7 +46,7 @@ import { ClaimCheckCard } from "@/components/ClaimCheckCard";
 import { RadarSehatCard } from "@/components/RadarSehatCard";
 import { WearableCard } from "@/components/WearableCard";
 import { SatuSehatCard } from "@/components/SatuSehatCard";
-import { featureBiomarker, featureRamadan, featureMedication, featureNutrition, featureFoodDiary, featureVault, featureFamily, featureGamification, featureEarlyWarning, featureRppg, featureConsultation, featureWhatIf, featureMonthlyInsight, featureImmunization, featureCycle, featureCekKlaim, featureRadar, featureWearable, featureSatuSehat, featureFocus, featureWhatsNew, featureWeeklyRecap, featureRamadanWrapped } from "@/lib/features";
+import { featureBiomarker, featureRamadan, featureMedication, featureNutrition, featureFoodDiary, featureVault, featureFamily, featureGamification, featureEarlyWarning, featureRppg, featureConsultation, featureWhatIf, featureMonthlyInsight, featureImmunization, featureCycle, featureCekKlaim, featureRadar, featureWearable, featureSatuSehat, featureFocus, featureWhatsNew, featureWeeklyRecap, featureRamadanWrapped, featureRamadanReadiness } from "@/lib/features";
 import { isScheduledOn, isoWeekdayOf } from "@arta/core";
 import { todayKey } from "@/lib/habits";
 import { isFastingToday } from "@/lib/fasting";
@@ -211,6 +212,7 @@ export default function Dashboard() {
         </header>
 
         {featureRamadan() && <RamadanHeader />}
+        {featureRamadanReadiness() && <RamadanReadinessCard />}
         {featureRamadan() && <RamadanSetupCard />}
         {featureRamadan() && <SunnahScheduleCard />}
         {featureRamadan() && <PreRamadanMedicalCard />}

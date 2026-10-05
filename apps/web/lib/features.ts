@@ -163,6 +163,14 @@ export const featureVoice = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_VOICE === "1";
 
 /**
+ * Readiness pra-Ramadan (Fase 9 · RW-2). Default OFF. Countdown H-N + checklist persiapan (lokasi
+ * imsakiyah, panduan medis, obat) via engine deterministik @arta/core. Tampil hanya PRA-MUSIM
+ * (Ramadan diaktifkan tapi belum mulai); inert selain itu. Non-medis. Dev: NEXT_PUBLIC_FEATURE_RAMADAN_READINESS=1.
+ */
+export const featureRamadanReadiness = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_RAMADAN_READINESS === "1";
+
+/**
  * Ramadan Wrapped (Fase 9 · RW-1). Default OFF. Rekap akhir bulan puasa DETERMINISTIK (hari
  * berpuasa, rentetan, % penyelesaian, tingkat+headline) dari fasting_days dlm rentang Ramadan
  * (@arta/core ramadanWrapped). Delight/retensi musiman; inert di luar musim (sembunyi bila rentang
