@@ -71,6 +71,11 @@ RLS: baca komunal; tulis lewat Edge Function termoderasi (bukan tulis-langsung k
   **Tanpa backend/migrasi** — fondasi klien yang kelak menyuplai/menerima dari komunal.
 - **KC-2**: tabel `product_catalog` + Edge Function kontribusi **termoderasi** (konsensus server +
   sanity + rate-limit) + baca komunal. **Gerbang konten §3** wajib lewat.
+  - **KC-2a (SELESAI, engine)**: primitif anti-spam DETERMINISTIK `catalog-moderation.ts` —
+    `isPlausibleContribution` (sanity-gate batas wajar: tolak garbage sebelum masuk pool) +
+    `catalogEntryStatus` (tepercaya bila kontribusi ≥ ambang; sembunyi bila laporan ≥ ambang) +
+    `consensusNutrition` (median, KC-1). Teruji; dipakai Edge Function KC-2 saat dibangun. Backend
+    (tabel + fungsi + ops moderasi) & gerbang §3 = menyusul (keputusan/sumber daya Firman).
 - **KC-3**: barcode (input manual/kamera) sebagai identitas kuat + merge lintas-nama.
 
 **GERBANG sebelum tulis-komunal publik**: (1) moderasi/anti-spam operasional; (2) konsensus+sanity

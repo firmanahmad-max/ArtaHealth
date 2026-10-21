@@ -40,6 +40,7 @@ export * from "./spoken-numbers.ts";
 export * from "./wearable.ts";
 export * from "./fhir.ts";
 export * from "./product-catalog.ts";
+export * from "./catalog-moderation.ts";
 export * from "./leaderboard.ts";
 export * from "./today-focus.ts";
 export * from "./weekly-recap.ts";
