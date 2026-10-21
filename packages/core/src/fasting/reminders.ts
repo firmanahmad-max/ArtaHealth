@@ -49,3 +49,48 @@ export function buildSahurReminder(input: SahurReminderInput): SahurReminder | n
 
   return { title: "Waktu sahur 🌙", body, url: "/" };
 }
+
+/**
+ * Pengingat berbuka (iftar) — deterministik, pelengkap sahur untuk Ramadan live-ops (RW-5).
+ * Mengikuti guardrail push: isi personal (waktu maghrib nyata + hitung mundur + saran hidrasi
+ * bertahap), bukan alarm generik. Pengiriman (cron/Edge Function) memanggil dgn maghrib server-side;
+ * dedup sekali-per-hari di lapisan pengiriman.
+ */
+export interface IftarReminderInput {
+  /** menit sejak tengah malam lokal */
+  nowMinutes: number;
+  /** waktu maghrib/berbuka (menit sejak tengah malam) */
+  maghribMinutes: number;
+  /** menit sebelum maghrib untuk mulai mengingatkan (default 30) */
+  reminderOffsetMin: number;
+  /** hidrasi hari puasa ini (opsional) — untuk saran personal berbuka */
+  hydration?: { totalMl: number; targetMl: number };
+}
+
+export interface IftarReminder {
+  title: string;
+  body: string;
+  url: string;
+}
+
+/**
+ * Bangun pengingat berbuka bila SEKARANG di jendela pra-maghrib [maghrib − offset, maghrib).
+ * Di luar jendela → null. Pesan: hitung mundur menuju berbuka + saran hidrasi bertahap.
+ */
+export function buildIftarReminder(input: IftarReminderInput): IftarReminder | null {
+  const { nowMinutes, maghribMinutes, reminderOffsetMin, hydration } = input;
+  const windowStart = maghribMinutes - reminderOffsetMin;
+  if (nowMinutes < windowStart || nowMinutes >= maghribMinutes) return null;
+
+  const toMaghrib = maghribMinutes - nowMinutes;
+  let body = `Maghrib ${formatTime(maghribMinutes)} — ${toMaghrib} menit lagi menuju berbuka.`;
+
+  if (hydration) {
+    const sisa = hydration.targetMl - hydration.totalMl;
+    body += sisa >= 250
+      ? ` Siapkan air & kurma; sisa target air ${sisa} ml bisa dicicil bertahap sejak berbuka.`
+      : " Awali dengan air & kurma, lalu minum bertahap agar tak kembung.";
+  }
+
+  return { title: "Menjelang berbuka 🌙", body, url: "/" };
+}
