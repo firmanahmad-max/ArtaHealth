@@ -17,7 +17,7 @@ import { computeHealthScore } from "../../../packages/core/src/scoring/health-sc
 import { buildReminder, type ReminderKind } from "../../../packages/core/src/notifications.ts";
 import { isScheduledOn, isoWeekdayOf } from "../../../packages/core/src/habits.ts";
 import { computePrayerTimes } from "../../../packages/core/src/fasting/prayer-times.ts";
-import { buildSahurReminder } from "../../../packages/core/src/fasting/reminders.ts";
+import { buildSahurReminder, buildIftarReminder } from "../../../packages/core/src/fasting/reminders.ts";
 import {
   localDateKey, localHour, localMinuteOfDay, tzOffsetMinutes, utcRangeForLocalDate,
 } from "../../../packages/core/src/timezone.ts";
@@ -215,6 +215,42 @@ Deno.serve(async (req) => {
                   await webpush.sendNotification(
                     { endpoint: device.endpoint, keys: { p256dh: device.p256dh, auth: device.auth } },
                     sahurPayload,
+                  );
+                  sent++;
+                  await supabase.from("push_devices")
+                    .update({ last_used_at: new Date().toISOString() }).eq("id", device.id);
+                } catch (e) {
+                  const status = (e as { statusCode?: number }).statusCode;
+                  if (status === 404 || status === 410) {
+                    await supabase.from("push_devices")
+                      .update({ revoked_at: new Date().toISOString() }).eq("id", device.id);
+                  }
+                }
+              }
+            }
+          }
+
+          // ── Pengingat berbuka/iftar (RW-5) ── jendela pra-maghrib, dedup slot 'iftar'.
+          const iftar = buildIftarReminder({
+            nowMinutes: localMinuteOfDay(now, tz),
+            maghribMinutes: times.maghrib,
+            reminderOffsetMin: 30,
+            hydration: context.hydration
+              ? { totalMl: context.hydration.totalMl, targetMl: context.hydration.targetMl }
+              : undefined,
+          });
+          if (iftar) {
+            const { error: iftarClaim } = await supabase.from("reminder_log")
+              .insert({ profile_id: profile.id, date: dateKey, kind: "iftar" });
+            if (!iftarClaim) {
+              const iftarPayload = JSON.stringify({
+                title: iftar.title, body: iftar.body, url: iftar.url, kind: "iftar",
+              });
+              for (const device of byProfile.get(profile.id) ?? []) {
+                try {
+                  await webpush.sendNotification(
+                    { endpoint: device.endpoint, keys: { p256dh: device.p256dh, auth: device.auth } },
+                    iftarPayload,
                   );
                   sent++;
                   await supabase.from("push_devices")
