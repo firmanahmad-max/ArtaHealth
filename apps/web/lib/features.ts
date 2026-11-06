@@ -163,6 +163,16 @@ export const featureVoice = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_VOICE === "1";
 
 /**
+ * Validasi minat Paket Ramadan (Fase 9 · RW-4a). Default OFF. Kartu waitlist: pengguna memilih
+ * tingkat paket yang diminati (atau "belum perlu") — TANPA pembayaran — untuk menguji kesediaan
+ * membayar sebelum monetisasi (gerbang master-roadmap §5). Butuh migrasi 0028 (paket_interest)
+ * di-db-push sebelum nyala. Harga hipotesis di @arta/core PAKET_TIERS.
+ * Dev: set NEXT_PUBLIC_FEATURE_PAKET_INTEREST=1 di .env.local.
+ */
+export const featurePaketInterest = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_PAKET_INTEREST === "1";
+
+/**
  * Readiness pra-Ramadan (Fase 9 · RW-2). Default OFF. Countdown H-N + checklist persiapan (lokasi
  * imsakiyah, panduan medis, obat) via engine deterministik @arta/core. Tampil hanya PRA-MUSIM
  * (Ramadan diaktifkan tapi belum mulai); inert selain itu. Non-medis. Dev: NEXT_PUBLIC_FEATURE_RAMADAN_READINESS=1.

@@ -16,6 +16,7 @@ import { RiskPanelCard } from "@/components/RiskPanelCard";
 import { TodayFocusCard } from "@/components/TodayFocusCard";
 import { DashboardSection } from "@/components/DashboardSection";
 import { WhatsNewCard } from "@/components/WhatsNewCard";
+import { PaketRamadanInterestCard } from "@/components/PaketRamadanInterestCard";
 import { WeeklyRecapCard } from "@/components/WeeklyRecapCard";
 import { RamadanHeader } from "@/components/RamadanHeader";
 import { FastingToggle } from "@/components/FastingToggle";
@@ -46,7 +47,7 @@ import { ClaimCheckCard } from "@/components/ClaimCheckCard";
 import { RadarSehatCard } from "@/components/RadarSehatCard";
 import { WearableCard } from "@/components/WearableCard";
 import { SatuSehatCard } from "@/components/SatuSehatCard";
-import { featureBiomarker, featureRamadan, featureMedication, featureNutrition, featureFoodDiary, featureVault, featureFamily, featureGamification, featureEarlyWarning, featureRppg, featureConsultation, featureWhatIf, featureMonthlyInsight, featureImmunization, featureCycle, featureCekKlaim, featureRadar, featureWearable, featureSatuSehat, featureFocus, featureWhatsNew, featureWeeklyRecap, featureRamadanWrapped, featureRamadanReadiness } from "@/lib/features";
+import { featureBiomarker, featureRamadan, featureMedication, featureNutrition, featureFoodDiary, featureVault, featureFamily, featureGamification, featureEarlyWarning, featureRppg, featureConsultation, featureWhatIf, featureMonthlyInsight, featureImmunization, featureCycle, featureCekKlaim, featureRadar, featureWearable, featureSatuSehat, featureFocus, featureWhatsNew, featureWeeklyRecap, featureRamadanWrapped, featureRamadanReadiness, featurePaketInterest } from "@/lib/features";
 import { isScheduledOn, isoWeekdayOf } from "@arta/core";
 import { todayKey } from "@/lib/habits";
 import { isFastingToday } from "@/lib/fasting";
@@ -297,6 +298,7 @@ export default function Dashboard() {
         <InsightCard />
 
         {featureWhatsNew() && <WhatsNewCard />}
+        {featurePaketInterest() && <PaketRamadanInterestCard />}
 
         <HabitCard />
 
