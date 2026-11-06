@@ -28,7 +28,7 @@ export function WeeklyRecapCard() {
       <div style={{ display: "flex", gap: 4 }}>
         {Array.from({ length: 7 }).map((_, i) => (
           <span key={i} aria-hidden style={{ flex: 1, height: 8, borderRadius: "var(--ah-r-full)",
-            background: i < recap.activeDays ? "var(--ah-accent)" : "var(--ah-surface-2)" }} />
+            background: i < recap.activeDays ? "var(--ah-blue)" : "var(--ah-surface-2)" }} />
         ))}
       </div>
 

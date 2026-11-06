@@ -171,7 +171,7 @@ function WeeklyPointsSection() {
           const isCurrent = i === data.weeks.length - 1;
           const isBest = data.best != null && w.weekKey === data.best.weekKey && w.points > 0;
           const h = Math.round((w.points / max) * 44) + 4;
-          const color = isCurrent ? "var(--ah-accent)" : isBest ? "var(--ah-score-excellent)" : "var(--ah-surface-3, var(--ah-border))";
+          const color = isCurrent ? "var(--ah-blue)" : isBest ? "var(--ah-score-excellent)" : "var(--ah-surface-3, var(--ah-border))";
           return (
             <div key={w.weekKey} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}
               title={`Minggu ${weekLabel(w.weekStartISO)}: ${w.points} poin`}>
