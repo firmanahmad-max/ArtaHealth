@@ -123,7 +123,7 @@ const card: React.CSSProperties = {
 };
 const emptyCta: React.CSSProperties = {
   alignSelf: "flex-start", minHeight: 36, padding: "0 14px", borderRadius: "var(--ah-r-full)",
-  border: "none", cursor: "pointer", background: "var(--ah-accent)", color: "#fff", fontSize: 12.5, fontWeight: 700,
+  border: "none", cursor: "pointer", background: "var(--ah-gradient-hero)", color: "#fff", fontSize: 12.5, fontWeight: 700,
 };
 const scoreNum: React.CSSProperties = { fontSize: 30, fontWeight: 800, color: "var(--ah-text-primary)", lineHeight: 1, fontVariantNumeric: "tabular-nums" };
 const scoreCap: React.CSSProperties = { fontSize: 9.5, color: "var(--ah-text-tertiary)", marginTop: 3 };
