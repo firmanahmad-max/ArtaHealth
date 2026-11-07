@@ -5,6 +5,8 @@ import { ramadanWrappedData, ramadanWrappedContext } from "@/lib/ramadan-wrapped
 import { useMounted } from "@/lib/useMounted";
 import { featureWrappedShare } from "@/lib/features";
 import { WrappedShareSheet } from "./WrappedShareSheet";
+import { usePremium } from "@/lib/entitlement";
+import { PremiumLocked } from "./PremiumLocked";
 
 /**
  * Ramadan Wrapped (Fase 9 · RW-1) — kartu rekap bulan puasa: hari berpuasa, rentetan terpanjang,
@@ -22,6 +24,7 @@ export function RamadanWrappedCard() {
   const [w, setW] = useState<RamadanWrapped | null>(null);
   const [ctx, setCtx] = useState<{ startDate: string; inProgress: boolean } | null>(null);
   const [sharing, setSharing] = useState(false);
+  const shareAllowed = usePremium("wrapped_share");
 
   useEffect(() => {
     if (!mounted) return;
@@ -56,7 +59,10 @@ export function RamadanWrappedCard() {
         Hari tanpa puasa (sehat, safar, haid, dsb.) dihormati — hanya dihitung untuk pengingat qadha, tanpa menilai.
       </p>
 
-      {featureWrappedShare() && ctx && w.fastedDays > 0 && (
+      {featureWrappedShare() && ctx && w.fastedDays > 0 && shareAllowed === false && (
+        <PremiumLocked compact title="Kartu Wrapped untuk dibagikan" />
+      )}
+      {featureWrappedShare() && ctx && w.fastedDays > 0 && shareAllowed && (
         sharing
           ? <WrappedShareSheet w={w} startDate={ctx.startDate} inProgress={ctx.inProgress} onClose={() => setSharing(false)} />
           : <button onClick={() => setSharing(true)} style={shareBtn}>🖼️ Buat kartu untuk dibagikan</button>

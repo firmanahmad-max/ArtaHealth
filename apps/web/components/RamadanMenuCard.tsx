@@ -4,6 +4,8 @@ import { useToast } from "@arta/design-system";
 import type { MealPlan } from "@arta/core";
 import { ramadanMenuToday, logMealPlan, type RamadanMenuContext } from "@/lib/ramadan-menu";
 import { useMounted } from "@/lib/useMounted";
+import { usePremium } from "@/lib/entitlement";
+import { PremiumLocked } from "./PremiumLocked";
 
 /**
  * Perencana Menu Sahur & Berbuka (Fase 9 · manfaat Paket Ramadan #3). Ide piring harian dari
@@ -19,13 +21,17 @@ export function RamadanMenuCard() {
   const [ctx, setCtx] = useState<RamadanMenuContext | null>(null);
   const [tab, setTab] = useState<"sahur" | "berbuka">(() => (new Date().getHours() < 12 ? "sahur" : "berbuka"));
   const [logged, setLogged] = useState<Set<string>>(new Set());
+  const allowed = usePremium("ramadan_menu");
 
   useEffect(() => {
     if (!mounted) return;
     void ramadanMenuToday(shift).then(setCtx);
   }, [mounted, shift]);
 
-  if (!ctx) return null;
+  if (!ctx || allowed === undefined) return null;
+  if (!allowed) {
+    return <PremiumLocked title="Menu Sahur & Berbuka" desc="Ide piring sahur & berbuka harian yang muat di jatah gizimu, bisa langsung dicatat ke Food Diary." />;
+  }
   const meal: MealPlan = ctx.plan[tab];
   const key = `${tab}:${shift}`;
 

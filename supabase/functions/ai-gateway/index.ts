@@ -13,13 +13,14 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   aiRequestSchema, dailyInsightSchema, chatReplySchema, insightContextSchema,
-  FREE_CHAT_QUOTA_PER_DAY, type DailyInsight,
+  type DailyInsight,
 } from "../../../packages/core/src/ai/contracts.ts";
 import {
   detectRedFlags, redFlagResponse, isUnsafeOutput, SAFE_OUTPUT_FALLBACK,
 } from "../../../packages/core/src/ai/safety.ts";
 import { getPrompt, fallbackDailyInsight, FALLBACK_CHAT_REPLY } from "../../../packages/core/src/ai/prompts.ts";
 import { localDateKey } from "../../../packages/core/src/timezone.ts";
+import { entitlementOf, chatQuotaFor } from "../../../packages/core/src/entitlement.ts";
 
 declare const Deno: {
   env: { get(name: string): string | undefined };
@@ -154,20 +155,23 @@ Deno.serve(async (req) => {
       return json({ reply: redFlagResponse(hits), redFlag: true, needsDisclaimer: true, source: "safety" });
     }
 
-    // 2) Kuota harian free tier
+    // 2) Kuota harian per tier (entitlement: free 5 · ramadan 20 · pro tanpa batas). Baris
+    //    subscriptions hanya ada bila dibayar/diberikan manual → aman tanpa sakelar paywall web.
     const { data: sub } = await db
       .from("subscriptions").select("tier, valid_until").eq("account_id", userId).maybeSingle();
-    const isPro = sub?.tier === "pro" && (!sub.valid_until || new Date(sub.valid_until) > new Date());
-    if (!isPro) {
+    const ent = entitlementOf(sub, Date.now());
+    const quota = chatQuotaFor(ent);
+    if (quota !== null) {
       const { count } = await db
         .from("ai_chat_messages")
         .select("id", { count: "exact", head: true })
         .eq("profile_id", profileId).eq("role", "user")
         .gte("created_at", `${todayKey}T00:00:00Z`);
-      if ((count ?? 0) >= FREE_CHAT_QUOTA_PER_DAY) {
+      if ((count ?? 0) >= quota) {
+        const label = ent.tier === "free" ? "gratis" : "Paket Ramadan";
         return json({
           error: "quota_exceeded",
-          reply: `Kuota chat gratis hari ini sudah habis (${FREE_CHAT_QUOTA_PER_DAY} pesan). Kuota berikutnya tersedia besok.`,
+          reply: `Kuota chat ${label} hari ini sudah habis (${quota} pesan). Kuota berikutnya tersedia besok.`,
         }, 429);
       }
     }

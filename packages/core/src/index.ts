@@ -45,6 +45,7 @@ export * from "./fhir.ts";
 export * from "./product-catalog.ts";
 export * from "./catalog-moderation.ts";
 export * from "./paket-ramadan.ts";
+export * from "./entitlement.ts";
 export * from "./leaderboard.ts";
 export * from "./today-focus.ts";
 export * from "./weekly-recap.ts";

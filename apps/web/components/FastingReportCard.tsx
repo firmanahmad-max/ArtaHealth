@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import type { FastingReport, ValueStat, BpStat } from "@arta/core";
 import { fastingReport, fastingReportAvailable } from "@/lib/fasting-report";
 import { useMounted } from "@/lib/useMounted";
+import { usePremium } from "@/lib/entitlement";
+import { PremiumLocked } from "./PremiumLocked";
 import { printOnly, printOnlyCss } from "@/lib/print";
 
 /**
@@ -20,13 +22,17 @@ export function FastingReportCard() {
   const [available, setAvailable] = useState(false);
   const [r, setR] = useState<FastingReport | null | undefined>(undefined); // undefined = belum dibuat
   const [loading, setLoading] = useState(false);
+  const allowed = usePremium("fasting_report");
 
   useEffect(() => {
     if (!mounted) return;
     void fastingReportAvailable().then(setAvailable);
   }, [mounted]);
 
-  if (!available) return null; // di luar musim / rentang belum diatur / Ramadan belum mulai
+  if (!available || allowed === undefined) return null; // di luar musim / rentang belum diatur / belum mulai
+  if (!allowed) {
+    return <PremiumLocked title="Laporan Puasa untuk Dokter" desc="Rekap gula darah & tensi saat jam puasa, obat, dan berat badan selama Ramadan — siap dicetak/PDF." />;
+  }
 
   const generate = async () => {
     setLoading(true);
