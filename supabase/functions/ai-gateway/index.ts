@@ -74,7 +74,12 @@ async function callProvider(system: string, user: string): Promise<{ content: st
       }),
       signal: controller.signal,
     });
-    if (!res.ok) throw new Error(`provider ${res.status}`);
+    if (!res.ok) {
+      // cuplikan pendek isi galat penyedia (mis. "insufficient credit", "model not found") —
+      // BUKAN isi pesan pengguna; membantu diagnosa dari log tanpa membocorkan data.
+      const detail = (await res.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 160);
+      throw new Error(`provider ${res.status} model=${cfg.model} ${detail}`);
+    }
     const body = await res.json();
     return {
       content: body?.choices?.[0]?.message?.content ?? "",
@@ -100,8 +105,12 @@ async function callValidated<T>(
       const { content, tokens } = await callProvider(system, user);
       const parsed = validate(parseJsonLoose(content));
       if (parsed !== null) return { value: parsed, tokens };
-    } catch {
-      // jaringan/timeout/JSON rusak → percobaan berikutnya, lalu fallback
+      console.warn(`ai_call_invalid attempt=${attempt + 1} reason=schema_mismatch len=${content.length}`);
+    } catch (e) {
+      // jaringan/timeout/JSON rusak → percobaan berikutnya, lalu fallback. Log alasan saja
+      // (tanpa isi prompt/pesan) agar kegagalan tak lagi diam-diam.
+      const reason = e instanceof Error ? (e.name === "AbortError" ? "timeout_20s" : e.message) : String(e);
+      console.warn(`ai_call_failed attempt=${attempt + 1} reason=${reason.slice(0, 220)}`);
     }
   }
   return null;
