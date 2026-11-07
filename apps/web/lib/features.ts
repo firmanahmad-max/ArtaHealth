@@ -218,6 +218,16 @@ export const featureRamadanMenu = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_RAMADAN_MENU === "1";
 
 /**
+ * SAKELAR PAYWALL (Fase 9 · RW-4c). Default OFF = semua fitur premium terbuka (perilaku hari ini,
+ * tanpa request ke `subscriptions`). ON = fitur premium (wrapped_share, fasting_report,
+ * ramadan_menu) hanya untuk tier ramadan/pro di tabel `subscriptions` (@arta/core entitlement).
+ * ⚠️ JANGAN nyalakan sebelum pembayaran tersedia — tanpa cara membeli, fitur terkunci untuk semua.
+ * Butuh migration 0029. Kuota chat per tier berlaku di ai-gateway terlepas dari sakelar ini.
+ */
+export const featurePaywall = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_PAYWALL === "1";
+
+/**
  * Ringkasan Mingguan (Fase 8 · KR-5 retensi). Default OFF. Refleksi konsistensi mingguan (hari
  * aktif, catatan, streak) + motivasi DETERMINISTIK (@arta/core weeklyRecap) — fokus konsistensi,
  * bukan poin (tak dobel dgn Papan poin). Bahan untuk push mingguan (backend cron = menyusul).

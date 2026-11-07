@@ -17,6 +17,7 @@ musiman + redeploy**. Prinsip CONTEXT §4 + gerbang keislaman/medis Fase 3 §10 
 | **Wrapped kartu gambar** (manfaat Paket #1) | `NEXT_PUBLIC_FEATURE_WRAPPED_SHARE` (butuh `_RAMADAN_WRAPPED`) | — (dibuat di perangkat) | keputusan gratis vs premium (hasil RW-4a) | siap; gating bayar menyusul RW-4c |
 | **Laporan Puasa untuk dokter** (manfaat Paket #2) | `NEXT_PUBLIC_FEATURE_FASTING_REPORT` (butuh `_RAMADAN`) | — (on-device, cetak/PDF) | review medis teks disclaimer + keputusan gratis vs premium | siap; gating bayar menyusul RW-4c |
 | **Menu sahur & berbuka** (manfaat Paket #3) | `NEXT_PUBLIC_FEATURE_RAMADAN_MENU` (butuh `_RAMADAN`) | — | review ahli gizi atas aturan piring & tips + keputusan gratis vs premium | siap; gating bayar menyusul RW-4c |
+| **RW-4c Fondasi hak akses** | `NEXT_PUBLIC_FEATURE_PAYWALL` (**OFF sampai checkout jalan**) | **migrasi 0029 db-push** + **deploy `ai-gateway`** (kuota chat per tier) | — | siap; db-push + deploy aman kapan saja (tanpa baris `subscriptions` = perilaku sama) |
 | **RW-4b–d Pembayaran** | — | — | minat ≥10% + legal + provider | **belum dibangun (blocker bisnis)** |
 | **RW-5 Pengingat berbuka/iftar** | (ikut `_RAMADAN`) | **migrasi 0027 db-push** + **deploy `send-reminders`** | — | tinggal db-push 0027 + deploy |
 

@@ -60,8 +60,41 @@ Masukkan ke `paketInterestSummary(counts, activeUsers, thresholdPct = 10)`:
 
 - **B · Legal:** daftar PSE Lingkup Privat (Komdigi, via OSS), kebijakan privasi sesuai UU PDP, Syarat Layanan + kebijakan refund, NPWP untuk merchant.
 - **B · Payment sandbox:** akun Midtrans/Xendit → kunci **sandbox** disimpan sebagai secret Supabase (`npx supabase secrets set PAYMENT_SERVER_KEY=...`) — **jangan pernah ditempel di chat/kode**. Pakai *hosted checkout* (tak menyentuh data kartu).
-- **C · Integrasi:** Edge Function buat transaksi + webhook verifikasi signature → tulis ke tabel `subscriptions` yang **sudah ada** (migration 0003: `tier free|pro`, `valid_until`, `provider midtrans|manual|playstore` — perlu ditambah nilai tier musiman, mis. `ramadan`) → gating fitur premium.
-- **D · Go-live:** ganti ke kunci produksi ±H-14 Ramadan, uji transaksi nyata nominal kecil, siapkan alur refund.
+- **C · Integrasi:** Edge Function buat transaksi + webhook verifikasi signature → tulis baris ke `subscriptions` (`tier='ramadan'`, `valid_until`, `provider`). **Fondasi hak akses SUDAH DIBANGUN** (lihat §4a) — tinggal checkout + webhook.
+- **D · Go-live:** ganti ke kunci produksi ±H-14 Ramadan, uji transaksi nyata nominal kecil, siapkan alur refund, **baru nyalakan `NEXT_PUBLIC_FEATURE_PAYWALL`**.
+
+## 4a. Fondasi hak akses (RW-4c, sudah di kode)
+
+| Lapisan | Berkas | Isi |
+|---|---|---|
+| Engine | `packages/core/src/entitlement.ts` | `entitlementOf` (tier efektif; kedaluwarsa → free), `canUse`, `chatQuotaFor`, `daysLeft`. Dipakai web **dan** `ai-gateway` |
+| Data | `supabase/migrations/0029_subscription_ramadan_tier.sql` | `subscriptions.tier` + `'ramadan'`; `provider` + `'xendit'`. RLS tetap: baca-sendiri, tulis hanya service_role |
+| Web | `apps/web/lib/entitlement.ts` + `PremiumLocked` | `usePremium(fitur)`; baris dicache di perangkat (offline tetap benar) |
+| Server | `supabase/functions/ai-gateway` | Kuota chat per tier: free **5** · ramadan **20** · pro tanpa batas (`CHAT_QUOTA_PER_DAY`) |
+
+**Fitur yang dikunci saat paywall nyala:** kartu Wrapped untuk dibagikan, Laporan Puasa, Menu Sahur & Berbuka.
+**Tak pernah dikunci:** imsakiyah, pengingat sahur & berbuka, panduan medis puasa, cek konflik obat, rekap Wrapped di layar.
+
+**Sakelar `NEXT_PUBLIC_FEATURE_PAYWALL`:**
+- **OFF (default)** → semua fitur premium terbuka, tanpa request ke `subscriptions` (perilaku hari ini).
+- **ON** → hanya tier `ramadan`/`pro` aktif. ⚠️ **Jangan nyalakan sebelum checkout jalan** — tanpa cara membeli, fitur terkunci untuk semua orang.
+- Bila diputuskan Paket **gratis** tahun ini: biarkan OFF selamanya; nyalakan flag fitur masing-masing saja.
+
+**Langkah rilis fondasi (aman kapan saja, tak mengubah apa pun bagi pengguna):**
+1. `npx supabase@2.117.0 db push` → migration 0029.
+2. `npx supabase@2.117.0 functions deploy ai-gateway` → kuota per tier. Tanpa baris `subscriptions`, semua tetap free 5/hari (sama seperti sekarang); `pro` tetap tanpa batas.
+
+**Memberi akses manual** (penguji, hadiah, kompensasi) — di SQL Editor, ganti `<account_id>` dengan id dari Authentication → Users:
+
+```sql
+insert into subscriptions (account_id, tier, valid_until, provider)
+values ('<account_id>', 'ramadan', '2027-03-25T00:00:00+07:00', 'manual')
+on conflict (account_id) do update
+  set tier = excluded.tier, valid_until = excluded.valid_until,
+      provider = excluded.provider, updated_at = now();
+```
+
+Cabut: `update subscriptions set tier = 'free', valid_until = null, updated_at = now() where account_id = '<account_id>';`
 
 ## 5. Privasi
 
