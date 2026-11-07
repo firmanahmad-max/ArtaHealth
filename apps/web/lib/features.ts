@@ -190,6 +190,15 @@ export const featureRamadanWrapped = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_RAMADAN_WRAPPED === "1";
 
 /**
+ * Ramadan Wrapped — kartu GAMBAR yang bisa dibagikan (Fase 9 · manfaat Paket Ramadan #1). Default
+ * OFF. Butuh featureRamadanWrapped. Gambar PNG dibuat di perangkat (canvas), privasi-dulu: qadha
+ * tak pernah ikut, % opsional (@arta/core wrappedShareCard). Calon fitur premium — gating
+ * pembayaran menyusul RW-4c. Dev: set NEXT_PUBLIC_FEATURE_WRAPPED_SHARE=1.
+ */
+export const featureWrappedShare = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_WRAPPED_SHARE === "1";
+
+/**
  * Ringkasan Mingguan (Fase 8 · KR-5 retensi). Default OFF. Refleksi konsistensi mingguan (hari
  * aktif, catatan, streak) + motivasi DETERMINISTIK (@arta/core weeklyRecap) — fokus konsistensi,
  * bukan poin (tak dobel dgn Papan poin). Bahan untuk push mingguan (backend cron = menyusul).

@@ -28,3 +28,10 @@ export async function ramadanWrappedData(nowKey = todayKey()): Promise<RamadanWr
     .map((r) => ({ date: r.date, status: r.status }));
   return ramadanWrapped({ entries, startDate: s.ramadanStart, endDate: effectiveEnd });
 }
+
+/** Konteks untuk kartu gambar: awal Ramadan (tahun Hijriah) + apakah masih berjalan. */
+export async function ramadanWrappedContext(nowKey = todayKey()): Promise<{ startDate: string; inProgress: boolean } | null> {
+  const s = await getFastingSettings();
+  if (!s.ramadanStart || !s.ramadanEnd) return null;
+  return { startDate: s.ramadanStart, inProgress: nowKey < s.ramadanEnd };
+}
