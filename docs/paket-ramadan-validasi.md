@@ -22,7 +22,7 @@
 | `pro_annual` | PRO Tahunan | Rp149.000 | per tahun |
 | `not_now` | Belum perlu | — | — |
 
-**Status manfaat:** #1 Wrapped kartu gambar **SUDAH DIBANGUN** (`core/fasting/wrapped-share.ts` + `lib/wrapped-image.ts`, flag `NEXT_PUBLIC_FEATURE_WRAPPED_SHARE` OFF; privasi-dulu: qadha tak pernah ikut, % opsional, gambar dibuat di perangkat). #2 Laporan Puasa (PDF) **SUDAH DIBANGUN** (`core/fasting/fasting-report.ts` + `lib/fasting-report.ts` + `FastingReportCard`, flag `NEXT_PUBLIC_FEATURE_FASTING_REPORT` OFF: gula & tensi saat jam puasa vs di luar, hitungan ambang `RED_FLAG_THRESHOLDS`, obat di jam puasa, kepatuhan, berat; cetak/PDF via browser). #3–#4 belum.
+**Status manfaat:** #1 Wrapped kartu gambar **SUDAH DIBANGUN** (`core/fasting/wrapped-share.ts` + `lib/wrapped-image.ts`, flag `NEXT_PUBLIC_FEATURE_WRAPPED_SHARE` OFF; privasi-dulu: qadha tak pernah ikut, % opsional, gambar dibuat di perangkat). #2 Laporan Puasa (PDF) **SUDAH DIBANGUN** (`core/fasting/fasting-report.ts` + `lib/fasting-report.ts` + `FastingReportCard`, flag `NEXT_PUBLIC_FEATURE_FASTING_REPORT` OFF: gula & tensi saat jam puasa vs di luar, hitungan ambang `RED_FLAG_THRESHOLDS`, obat di jam puasa, kepatuhan, berat; cetak/PDF via browser). #3 Menu sahur & berbuka **SUDAH DIBANGUN** (`core/fasting/ramadan-menu.ts` + `lib/ramadan-menu.ts` + `RamadanMenuCard`, flag `NEXT_PUBLIC_FEATURE_RAMADAN_MENU` OFF: hanya dari FOOD_DB yang sudah ditinjau ahli gizi, tiap makan ≤40% jatah GGL harian, bobot hipertensi/diabetes/dislipidemia, rotasi harian, catat ke Food Diary). #4 kuota ArtaBot butuh pembayaran (RW-4c) — belum.
 
 **Tetap gratis (dijanjikan di kartu):** imsakiyah, pengingat sahur & berbuka, panduan medis puasa, cek konflik obat.
 Fitur keselamatan tak pernah dikunci di balik pembayaran.

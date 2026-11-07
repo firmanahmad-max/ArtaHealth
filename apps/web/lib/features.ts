@@ -209,6 +209,15 @@ export const featureFastingReport = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_FASTING_REPORT === "1";
 
 /**
+ * Perencana Menu Sahur & Berbuka (Fase 9 · manfaat Paket Ramadan #3). Default OFF. Piring harian
+ * dari FOOD_DB (ditinjau ahli gizi) yang muat ≤40% jatah GGL per makan (@arta/core
+ * ramadanMenuPlan), bobot kondisi (hipertensi/diabetes/dislipidemia), rotasi harian, catat ke
+ * Food Diary. Non-medis. Calon premium — gating menyusul RW-4c. Dev: NEXT_PUBLIC_FEATURE_RAMADAN_MENU=1.
+ */
+export const featureRamadanMenu = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_RAMADAN_MENU === "1";
+
+/**
  * Ringkasan Mingguan (Fase 8 · KR-5 retensi). Default OFF. Refleksi konsistensi mingguan (hari
  * aktif, catatan, streak) + motivasi DETERMINISTIK (@arta/core weeklyRecap) — fokus konsistensi,
  * bukan poin (tak dobel dgn Papan poin). Bahan untuk push mingguan (backend cron = menyusul).
