@@ -199,6 +199,16 @@ export const featureWrappedShare = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_WRAPPED_SHARE === "1";
 
 /**
+ * Laporan Puasa untuk dokter (Fase 9 · manfaat Paket Ramadan #2). Default OFF. Rekap Ramadan
+ * deterministik (@arta/core buildFastingReport): gula & tensi saat jam puasa vs di luar, hitungan
+ * ambang kegawatan RED_FLAG_THRESHOLDS, obat di jam puasa, kepatuhan, berat. Cetak/PDF lewat
+ * browser, on-device, non-diagnosis. Calon premium — gating menyusul RW-4c.
+ * Dev: set NEXT_PUBLIC_FEATURE_FASTING_REPORT=1.
+ */
+export const featureFastingReport = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_FASTING_REPORT === "1";
+
+/**
  * Ringkasan Mingguan (Fase 8 · KR-5 retensi). Default OFF. Refleksi konsistensi mingguan (hari
  * aktif, catatan, streak) + motivasi DETERMINISTIK (@arta/core weeklyRecap) — fokus konsistensi,
  * bukan poin (tak dobel dgn Papan poin). Bahan untuk push mingguan (backend cron = menyusul).

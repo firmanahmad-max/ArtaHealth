@@ -23,6 +23,7 @@ import { FastingToggle } from "@/components/FastingToggle";
 import { ImsakiyahCard } from "@/components/ImsakiyahCard";
 import { HydrationSessionTracker } from "@/components/HydrationSessionTracker";
 import { RamadanWrappedCard } from "@/components/RamadanWrappedCard";
+import { FastingReportCard } from "@/components/FastingReportCard";
 import { RamadanReadinessCard } from "@/components/RamadanReadinessCard";
 import { PreRamadanMedicalCard } from "@/components/PreRamadanMedicalCard";
 import { RamadanSetupCard } from "@/components/RamadanSetupCard";
@@ -47,7 +48,7 @@ import { ClaimCheckCard } from "@/components/ClaimCheckCard";
 import { RadarSehatCard } from "@/components/RadarSehatCard";
 import { WearableCard } from "@/components/WearableCard";
 import { SatuSehatCard } from "@/components/SatuSehatCard";
-import { featureBiomarker, featureRamadan, featureMedication, featureNutrition, featureFoodDiary, featureVault, featureFamily, featureGamification, featureEarlyWarning, featureRppg, featureConsultation, featureWhatIf, featureMonthlyInsight, featureImmunization, featureCycle, featureCekKlaim, featureRadar, featureWearable, featureSatuSehat, featureFocus, featureWhatsNew, featureWeeklyRecap, featureRamadanWrapped, featureRamadanReadiness, featurePaketInterest } from "@/lib/features";
+import { featureBiomarker, featureRamadan, featureMedication, featureNutrition, featureFoodDiary, featureVault, featureFamily, featureGamification, featureEarlyWarning, featureRppg, featureConsultation, featureWhatIf, featureMonthlyInsight, featureImmunization, featureCycle, featureCekKlaim, featureRadar, featureWearable, featureSatuSehat, featureFocus, featureWhatsNew, featureWeeklyRecap, featureRamadanWrapped, featureRamadanReadiness, featurePaketInterest, featureFastingReport } from "@/lib/features";
 import { isScheduledOn, isoWeekdayOf } from "@arta/core";
 import { todayKey } from "@/lib/habits";
 import { isFastingToday } from "@/lib/fasting";
@@ -220,6 +221,7 @@ export default function Dashboard() {
         {featureRamadan() && fastingToday && <ImsakiyahCard />}
         {featureRamadan() && fastingToday && <HydrationSessionTracker />}
         {featureRamadanWrapped() && <RamadanWrappedCard />}
+        {featureRamadan() && featureFastingReport() && <FastingReportCard />}
 
         <div style={{ position: "relative", background: "var(--ah-surface-1)", border: "1px solid var(--ah-border)", borderRadius: "var(--ah-r-card)", padding: 20, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
           {fastingContext && (
