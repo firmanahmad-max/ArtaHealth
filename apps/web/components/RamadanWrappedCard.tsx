@@ -1,8 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import type { RamadanWrapped, RamadanTier } from "@arta/core";
-import { ramadanWrappedData } from "@/lib/ramadan-wrapped";
+import { ramadanWrappedData, ramadanWrappedContext } from "@/lib/ramadan-wrapped";
 import { useMounted } from "@/lib/useMounted";
+import { featureWrappedShare } from "@/lib/features";
+import { WrappedShareSheet } from "./WrappedShareSheet";
 
 /**
  * Ramadan Wrapped (Fase 9 · RW-1) — kartu rekap bulan puasa: hari berpuasa, rentetan terpanjang,
@@ -18,10 +20,13 @@ const TIER_COLOR: Record<RamadanTier, string> = {
 export function RamadanWrappedCard() {
   const mounted = useMounted();
   const [w, setW] = useState<RamadanWrapped | null>(null);
+  const [ctx, setCtx] = useState<{ startDate: string; inProgress: boolean } | null>(null);
+  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
     if (!mounted) return;
     void ramadanWrappedData().then(setW);
+    if (featureWrappedShare()) void ramadanWrappedContext().then(setCtx);
   }, [mounted]);
 
   if (!w || w.totalDays === 0) return null; // di luar musim / rentang belum diatur
@@ -50,6 +55,12 @@ export function RamadanWrappedCard() {
       <p style={{ fontSize: 10, color: "var(--ah-text-tertiary)", lineHeight: 1.5 }}>
         Hari tanpa puasa (sehat, safar, haid, dsb.) dihormati — hanya dihitung untuk pengingat qadha, tanpa menilai.
       </p>
+
+      {featureWrappedShare() && ctx && w.fastedDays > 0 && (
+        sharing
+          ? <WrappedShareSheet w={w} startDate={ctx.startDate} inProgress={ctx.inProgress} onClose={() => setSharing(false)} />
+          : <button onClick={() => setSharing(true)} style={shareBtn}>🖼️ Buat kartu untuk dibagikan</button>
+      )}
     </div>
   );
 }
@@ -66,6 +77,10 @@ function Stat({ value, label }: { value: string; label: string }) {
 const card: React.CSSProperties = {
   background: "var(--ah-gradient-soft, var(--ah-surface-1))", border: "1px solid var(--ah-border)",
   borderRadius: "var(--ah-r-card)", padding: 14, display: "flex", flexDirection: "column", gap: 12,
+};
+const shareBtn: React.CSSProperties = {
+  padding: "9px 12px", borderRadius: "var(--ah-r-chip)", cursor: "pointer", fontSize: 12, fontWeight: 700,
+  background: "var(--ah-surface-2)", color: "var(--ah-text-primary)", border: "1px solid var(--ah-border)",
 };
 const ring: React.CSSProperties = {
   width: 72, height: 72, borderRadius: "50%", flexShrink: 0, border: "3px solid",
