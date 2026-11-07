@@ -15,6 +15,7 @@ musiman + redeploy**. Prinsip CONTEXT §4 + gerbang keislaman/medis Fase 3 §10 
 | **RW-3 Verifikasi imsakiyah 2027** | — (bukan fitur; gerbang) | — | **WAJIB**: diff app vs Kemenag ±2mnt + tanggal final isbat | **alat siap; verif = Firman** |
 | **RW-4a Validasi minat (waitlist)** | `NEXT_PUBLIC_FEATURE_PAKET_INTEREST` | migrasi 0028 ✅ push | — | **LIVE 7 Nov 2026** — baca hasil ±5 Des (`docs/paket-ramadan-validasi.md`) |
 | **Wrapped kartu gambar** (manfaat Paket #1) | `NEXT_PUBLIC_FEATURE_WRAPPED_SHARE` (butuh `_RAMADAN_WRAPPED`) | — (dibuat di perangkat) | keputusan gratis vs premium (hasil RW-4a) | siap; gating bayar menyusul RW-4c |
+| **Laporan Puasa untuk dokter** (manfaat Paket #2) | `NEXT_PUBLIC_FEATURE_FASTING_REPORT` (butuh `_RAMADAN`) | — (on-device, cetak/PDF) | review medis teks disclaimer + keputusan gratis vs premium | siap; gating bayar menyusul RW-4c |
 | **RW-4b–d Pembayaran** | — | — | minat ≥10% + legal + provider | **belum dibangun (blocker bisnis)** |
 | **RW-5 Pengingat berbuka/iftar** | (ikut `_RAMADAN`) | **migrasi 0027 db-push** + **deploy `send-reminders`** | — | tinggal db-push 0027 + deploy |
 
@@ -44,6 +45,7 @@ Nyalakan saat musim (set `=1`, lalu **redeploy** — flag build-time).
 - [ ] `NEXT_PUBLIC_FEATURE_RAMADAN=1` (+ `NEXT_PUBLIC_FEATURE_MEDICATION=1` bila dipakai)
 - [ ] `NEXT_PUBLIC_FEATURE_RAMADAN_READINESS=1` (pra-musim: countdown + checklist)
 - [ ] `NEXT_PUBLIC_FEATURE_RAMADAN_WRAPPED=1` (recap; tampil saat ada data puasa dalam rentang)
+- [ ] `NEXT_PUBLIC_FEATURE_FASTING_REPORT=1` (Laporan Puasa untuk dokter — muncul sejak hari pertama Ramadan; HANYA bila gratis, atau setelah gating RW-4c)
 - [ ] `NEXT_PUBLIC_FEATURE_WRAPPED_SHARE=1` (tombol "Buat kartu untuk dibagikan" — HANYA bila diputuskan gratis; bila premium, tunggu gating RW-4c)
 
 > Catatan: RW-5 (iftar) ikut Mode Ramadan — tak ada flag web terpisah; aktif setelah 0027 di-push +

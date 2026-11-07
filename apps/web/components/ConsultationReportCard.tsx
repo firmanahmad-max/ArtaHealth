@@ -7,6 +7,7 @@ import { createShareLink, revokeShareLink, type ShareLink } from "@/lib/consulta
 import { featureFamily } from "@/lib/features";
 import { familyMembers } from "@/lib/family";
 import { ConsultationReportView } from "./ConsultationReportView";
+import { printOnly, printOnlyCss } from "@/lib/print";
 
 /**
  * Mode Konsultasi — Laporan Dokter (V3-1). MK-1 laporan 90 hari tampil/cetak; MK-2
@@ -81,7 +82,7 @@ export function ConsultationReportCard() {
 
   return (
     <div style={card} className="ah-consult">
-      <style>{`@media print{body *{visibility:hidden}.ah-consult,.ah-consult *{visibility:visible}.ah-consult{position:absolute;left:0;top:0;width:100%;border:none}.ah-noprint{display:none!important}}`}</style>
+      <style>{printOnlyCss("consult", "ah-consult")}</style>
 
       <div>
         <p style={{ fontSize: 13, fontWeight: 700, color: "var(--ah-text-primary)" }}>🩺 Mode Konsultasi</p>
@@ -163,7 +164,7 @@ export function ConsultationReportCard() {
           )}
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }} className="ah-noprint">
-            <button onClick={() => window.print()} style={primaryBtn}>🖨️ Cetak / PDF</button>
+            <button onClick={() => printOnly("consult")} style={primaryBtn}>🖨️ Cetak / PDF</button>
             {!share && (
               <button onClick={() => void doShare()} disabled={sharing || view.isEmpty} style={primaryBtn}>
                 {sharing ? "Membuat…" : "🔗 Bagikan (QR)"}

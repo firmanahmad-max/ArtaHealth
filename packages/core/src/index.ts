@@ -14,6 +14,7 @@ export * from "./fasting/safety.ts";
 export * from "./fasting/streak.ts";
 export * from "./fasting/ramadan-wrapped.ts";
 export * from "./fasting/wrapped-share.ts";
+export * from "./fasting/fasting-report.ts";
 export * from "./fasting/ramadan-readiness.ts";
 export * from "./fasting/imsakiyah-verify.ts";
 export * from "./fasting/hijri.ts";
