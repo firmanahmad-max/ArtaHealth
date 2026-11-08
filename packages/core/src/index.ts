@@ -51,3 +51,4 @@ export * from "./today-focus.ts";
 export * from "./weekly-recap.ts";
 export * from "./weekly-push.ts";
 export * from "./notification-prefs.ts";
+export * from "./whats-new.ts";

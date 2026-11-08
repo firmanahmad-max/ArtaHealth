@@ -1,41 +1,66 @@
 "use client";
 import { useEffect, useState } from "react";
+import { parseWhatsNewSeen, pendingWhatsNew, serializeWhatsNewSeen } from "@arta/core";
 import {
-  featureFocus, featureWearable, featureRadar, featureSatuSehat, featureQuickLog,
+  featureFocus, featureWearable, featureRadar, featureSatuSehat, featureQuickLog, featureNotifPrefs,
+  featureRamadan, featureRamadanReadiness, featureRamadanMenu, featureFastingReport, featureRamadanWrapped,
 } from "@/lib/features";
 
 /**
  * "Apa Baru" (Fase 8 · KR-4) — kartu dismissible yang memperkenalkan fitur yang baru dinyalakan
- * ke pengguna lama. Hanya menampilkan entri yang flag-nya aktif; sekali "Mengerti" hilang permanen
- * (localStorage per-VERSION). Bump VERSION saat menambah entri baru → muncul lagi. Non-medis.
+ * ke pengguna lama. Hanya entri yang flag-nya aktif. Pelacakan PER ENTRI (@arta/core whats-new):
+ * "Mengerti" menandai entri yang tampil sebagai sudah dilihat → menambah entri baru TIDAK
+ * memunculkan ulang yang lama; entri > 3 bulan kedaluwarsa. Cukup tambahkan entri ber-`since`.
+ * Non-medis.
  */
 
-const VERSION = "2026-09";
 const KEY = "ah-whatsnew-seen";
 
-interface Entry { id: string; icon: string; title: string; blurb: string; on: () => boolean }
+interface Entry { id: string; since: string; icon: string; title: string; blurb: string; on: () => boolean }
 const ENTRIES: Entry[] = [
-  { id: "focus", icon: "🎯", title: "Fokus Hari Ini", blurb: "Ringkasan 1–3 hal penting untuk kamu lakukan hari ini.", on: featureFocus },
-  { id: "wearable", icon: "⌚", title: "Impor data perangkat", blurb: "Bawa langkah, tidur & detak dari export Google Fit.", on: featureWearable },
-  { id: "radar", icon: "🌫️", title: "Radar Sehat", blurb: "Pantau kualitas udara (AQI) di lokasimu.", on: featureRadar },
-  { id: "satusehat", icon: "🔗", title: "Ekspor FHIR", blurb: "Kemas datamu ke berkas standar untuk dibawa ke faskes.", on: featureSatuSehat },
-  { id: "quicklog", icon: "💬", title: "Catat lewat chat & suara", blurb: "Ketik atau ucapkan “minum 2 gelas” → langsung tercatat.", on: featureQuickLog },
-  { id: "beranda", icon: "🧭", title: "Beranda lebih rapi", blurb: "Kartu dikelompokkan; alat sekunder bisa dilipat.", on: () => true },
+  { id: "focus", since: "2026-09", icon: "🎯", title: "Fokus Hari Ini", blurb: "Ringkasan 1–3 hal penting untuk kamu lakukan hari ini.", on: featureFocus },
+  { id: "wearable", since: "2026-09", icon: "⌚", title: "Impor data perangkat", blurb: "Bawa langkah, tidur & detak dari export Google Fit.", on: featureWearable },
+  { id: "radar", since: "2026-09", icon: "🌫️", title: "Radar Sehat", blurb: "Pantau kualitas udara (AQI) di lokasimu.", on: featureRadar },
+  { id: "satusehat", since: "2026-09", icon: "🔗", title: "Ekspor FHIR", blurb: "Kemas datamu ke berkas standar untuk dibawa ke faskes.", on: featureSatuSehat },
+  { id: "quicklog", since: "2026-09", icon: "💬", title: "Catat lewat chat & suara", blurb: "Ketik atau ucapkan “minum 2 gelas” → langsung tercatat.", on: featureQuickLog },
+  { id: "beranda", since: "2026-09", icon: "🧭", title: "Beranda lebih rapi", blurb: "Kartu dikelompokkan; alat sekunder bisa dilipat.", on: () => true },
+  {
+    id: "pengingat-pintar", since: "2026-11", icon: "🔔", title: "Pengingat lebih pintar",
+    blurb: featureNotifPrefs()
+      ? "Ringkasan tiap Minggu malam & kabar saat rentetanmu terancam. Pilih sendiri jenis pengingat di kartu Pengingat."
+      : "Ringkasan tiap Minggu malam & kabar saat rentetanmu terancam — aktifkan di kartu Pengingat.",
+    on: () => true,
+  },
+  // Musim Ramadan 2027 — muncul otomatis begitu flag musimannya dinyalakan.
+  { id: "ramadan-readiness", since: "2027-02", icon: "🌙", title: "Menuju Ramadan", blurb: "Hitung mundur & checklist persiapan puasa.", on: () => featureRamadan() && featureRamadanReadiness() },
+  { id: "ramadan-menu", since: "2027-02", icon: "🍽️", title: "Menu Sahur & Berbuka", blurb: "Ide menu harian yang menyesuaikan kondisi kesehatanmu.", on: () => featureRamadan() && featureRamadanMenu() },
+  { id: "fasting-report", since: "2027-02", icon: "🩺", title: "Laporan Puasa untuk dokter", blurb: "Ringkas gula, tensi & obat selama puasa untuk dibawa konsultasi.", on: () => featureRamadan() && featureFastingReport() },
+  { id: "ramadan-wrapped", since: "2027-02", icon: "✨", title: "Ramadan Wrapped", blurb: "Rekap perjalanan puasamu, siap dikenang.", on: () => featureRamadan() && featureRamadanWrapped() },
 ];
 
+const thisMonthKey = (): string => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+};
+
 export function WhatsNewCard() {
-  const [dismissed, setDismissed] = useState<boolean | null>(null); // null = belum dicek (SSR-safe)
+  // null = belum dicek (SSR-safe: localStorage hanya dibaca setelah mount)
+  const [shown, setShown] = useState<Entry[] | null>(null);
+  const [seen, setSeen] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    try { setDismissed(localStorage.getItem(KEY) === VERSION); } catch { setDismissed(false); }
+    let raw: string | null = null;
+    try { raw = localStorage.getItem(KEY); } catch { /* mode privat → anggap belum ada */ }
+    const s = parseWhatsNewSeen(raw, ENTRIES);
+    setSeen(s);
+    setShown(pendingWhatsNew(ENTRIES.filter((e) => e.on()), s, thisMonthKey()));
   }, []);
 
-  const entries = ENTRIES.filter((e) => e.on());
-  if (dismissed !== false || entries.length === 0) return null;
+  if (!shown || shown.length === 0) return null;
 
   const close = () => {
-    try { localStorage.setItem(KEY, VERSION); } catch { /* abaikan */ }
-    setDismissed(true);
+    try { localStorage.setItem(KEY, serializeWhatsNewSeen(seen, shown.map((e) => e.id))); } catch { /* abaikan */ }
+    setShown([]);
   };
 
   return (
@@ -45,7 +70,7 @@ export function WhatsNewCard() {
         <button onClick={close} aria-label="Tutup" style={closeBtn}>Mengerti</button>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {entries.map((e) => (
+        {shown.map((e) => (
           <div key={e.id} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
             <span style={{ fontSize: 16, lineHeight: 1.3 }}>{e.icon}</span>
             <div style={{ minWidth: 0 }}>

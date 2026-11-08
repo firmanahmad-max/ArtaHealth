@@ -63,6 +63,10 @@ Nyalakan saat musim (set `=1`, lalu **redeploy** — flag build-time).
       cek `reminder_log` berisi kind `sahur` & `iftar`; push diterima di perangkat uji.
 - [ ] **Wrapped**: setelah beberapa hari (atau akhir Ramadan), kartu "🌙 Ramadan Wrapped" menampilkan
       hari puasa/rentetan/% sesuai data; non-menghakimi.
+- [ ] **"Apa Baru"**: entri Ramadan (Menuju Ramadan · Menu Sahur & Berbuka · Laporan Puasa · Ramadan
+      Wrapped) **muncul otomatis** untuk flag musiman yang menyala — tak perlu ubah kode. Entri lama
+      tak ikut muncul ulang (pelacakan per entri, `@arta/core` whats-new). Ubah teks di `WhatsNewCard.tsx`
+      bila perlu (mis. Wrapped kartu gambar / paywall).
 - [ ] Tanpa error konsol.
 
 ## 6. Rollback
