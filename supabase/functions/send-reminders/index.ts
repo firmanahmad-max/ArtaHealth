@@ -23,7 +23,7 @@ import {
 } from "../../../packages/core/src/timezone.ts";
 import type { InsightContext } from "../../../packages/core/src/ai/contracts.ts";
 import {
-  buildWeeklyPush, weeklyMetrics, mondayOf,
+  buildWeeklyPush, weeklyMetrics, mondayOf, dayStreak,
   WEEKLY_PUSH_WEEKDAY, WEEKLY_PUSH_FROM_HOUR, WEEKLY_PUSH_UNTIL_HOUR,
 } from "../../../packages/core/src/weekly-push.ts";
 
@@ -334,10 +334,21 @@ Deno.serve(async (req) => {
         }
       }
 
-      const reminder = buildReminder(context, {
-        hour,
-        alreadySentToday: rows<{ kind: ReminderKind }>(alreadySent).map((r) => r.kind),
-      });
+      // Rentetan kebiasaan — diambil HANYA bila bisa memengaruhi pesan (jendela kebiasaan, ada jadwal,
+      // belum ada yang selesai, 'habit' belum terkirim) → tak ada query tambahan di jam lain.
+      const sentKinds = rows<{ kind: ReminderKind }>(alreadySent).map((r) => r.kind);
+      let habitStreak = 0;
+      if (hour >= 18 && hour < 22 && scheduled.length > 0 && done.size === 0 && !sentKinds.includes("habit")) {
+        try {
+          const { data: comp } = await supabase.from("habit_completions").select("date")
+            .eq("profile_id", profile.id).is("deleted_at", null);
+          habitStreak = dayStreak(((comp ?? []) as { date: string }[]).map((c) => c.date), dateKey);
+        } catch (e) {
+          console.error(`streak gagal profil ${profile.id}: ${(e as Error).message}`); // pesan biasa tetap jalan
+        }
+      }
+
+      const reminder = buildReminder(context, { hour, alreadySentToday: sentKinds, habitStreak });
       if (!reminder) { skipped++; continue; }
 
       // klaim slot dedup LEBIH DULU: kalau baris sudah ada, profil ini dilewati

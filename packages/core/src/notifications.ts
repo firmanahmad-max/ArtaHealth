@@ -30,7 +30,16 @@ export interface ReminderOptions {
   quietFromHour?: number;
   /** jam selesai istirahat (default 7) */
   quietUntilHour?: number;
+  /**
+   * Rentetan kebiasaan berjalan (hari berturut-turut berakhir kemarin, aturan sama dgn aplikasi).
+   * Bila ≥ STREAK_AT_RISK_MIN dan belum ada kebiasaan selesai hari ini, pengingat kebiasaan
+   * berubah menjadi pesan "rentetan menunggu" (tetap kind 'habit' → tak menambah jumlah push).
+   */
+  habitStreak?: number;
 }
+
+/** Rentetan minimum agar pengingat kebiasaan memakai pesan rentetan. */
+export const STREAK_AT_RISK_MIN = 3;
 
 const idNum = (n: number) => n.toLocaleString("id-ID");
 const liters = (ml: number) => (ml / 1000).toFixed(1).replace(".", ",");
@@ -66,6 +75,17 @@ export function buildReminder(ctx: InsightContext, opts: ReminderOptions): Remin
   // 2) Kebiasaan — menjelang malam, saat masih bisa diselesaikan
   if (!sent.has("habit") && ctx.habits && hour >= 18 && hour < quietFromHour) {
     const sisa = ctx.habits.total - ctx.habits.completed;
+    const streak = opts.habitStreak ?? 0;
+    // Rentetan terancam: belum ada SATU pun kebiasaan selesai hari ini (satu saja sudah menjaga
+    // rentetan). Bingkai positif — yang dipertahankan, bukan ancaman kegagalan.
+    if (ctx.habits.completed === 0 && streak >= STREAK_AT_RISK_MIN) {
+      return {
+        kind: "habit",
+        title: `Rentetan ${streak} hari menunggu hari ini 🔥`,
+        body: `Belum ada kebiasaan yang selesai hari ini. Selesaikan satu sebelum tidur agar rentetan ${streak} harimu berlanjut.`,
+        url: "/",
+      };
+    }
     if (sisa > 0) {
       return {
         kind: "habit",
