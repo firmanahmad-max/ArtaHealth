@@ -105,5 +105,30 @@ sebelum tidur agar rentetan 5 harimu berlanjut."*
 - Data rentetan hanya diambil bila bisa memengaruhi pesan (jendela 18–22, ada jadwal, belum ada yang selesai).
 - Aktif otomatis setelah `functions deploy send-reminders`.
 
+### 6c. Atur jenis pengingat (SUDAH DI KODE, Nov 2026)
+
+**Apa:** saat pengingat aktif, kartu "Pengingat aktif 🔔" punya tautan **"Atur jenis pengingat"** →
+5 sakelar: Minum air · Kebiasaan & langkah · Tidur · Ringkasan mingguan · Sahur & berbuka (yang
+terakhir hanya tampil bila Mode Ramadan aktif). Pengguna bisa membisukan satu jenis **tanpa mencabut
+izin notifikasi**. Bila jenis yang dibisukan sebenarnya jadi pesan putaran itu, mesin beralih ke jenis
+lain yang masih relevan (mis. kebiasaan dibisukan → pengingat tidur).
+- Engine: `packages/core/src/notification-prefs.ts` (`normalizeMuted`, `mutedKinds`, `isKindMuted`) +
+  opsi `mutedKinds` di `buildReminder`.
+- Data: tabel `notification_prefs` (**migration 0031**, satu baris per profil, RLS milik sendiri).
+- Server: `send-reminders` membaca tabel itu; **bila tabel belum ada / gagal dibaca → tak ada yang
+  dibisukan** (perilaku lama) → urutan deploy aman.
+- Flag: `NEXT_PUBLIC_FEATURE_NOTIF_PREFS` (default OFF).
+
+**Langkah menyalakan (Firman, urut):**
+1. `npx supabase@2.117.0 db push` → migration **0031** (`--dry-run` dulu bila ragu).
+2. `npx supabase@2.117.0 functions deploy send-reminders --project-ref bawdoynqbwnxihnbgxfc`.
+3. Vercel: `NEXT_PUBLIC_FEATURE_NOTIF_PREFS=1` (Production) → **redeploy**.
+4. Uji: di HP yang pengingatnya aktif → "Atur jenis pengingat" → matikan "Ringkasan mingguan" →
+   SQL Editor: `select profile_id, muted from notification_prefs order by updated_at desc limit 5;`
+   harus berisi `{weekly}`.
+
+**Rollback:** flag `=0` + redeploy (sakelar hilang). Preferensi yang sudah tersimpan tetap dihormati
+server; untuk menghapus semuanya: `delete from notification_prefs;`.
+
 Referensi: `docs/roadmap-fase8.md`, `docs/release-checklist-v3.md`,
 `docs/release-checklist-backlog.md` (track V3 ter-blocked WR-2/SS-2/KC-2/LB-3).

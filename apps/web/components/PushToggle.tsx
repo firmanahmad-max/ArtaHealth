@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react";
 import { useToast } from "@arta/design-system";
 import { enablePush, disablePush, pushStatus, isSubscribed, type PushStatus } from "@/lib/push";
+import { featureNotifPrefs } from "@/lib/features";
+import { NotificationPrefsPanel } from "./NotificationPrefsPanel";
 
 /**
  * Pengaktifan pengingat — selalu lewat aksi eksplisit user, dengan alasan
@@ -13,6 +15,7 @@ export function PushToggle() {
   const [status, setStatus] = useState<PushStatus | null>(null);
   const [subscribed, setSubscribed] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showPrefs, setShowPrefs] = useState(false);
 
   useEffect(() => {
     setStatus(pushStatus());
@@ -51,12 +54,25 @@ export function PushToggle() {
   // "Aktif" hanya bila izin granted DAN benar-benar ter-subscribe (bukan izin saja).
   if (status === "granted" && subscribed) {
     return (
-      <div style={row}>
-        <div style={{ flex: 1 }}>
-          <p style={title}>Pengingat aktif 🔔</p>
-          <p style={desc}>Hanya dikirim bila ada yang personal untuk disampaikan.</p>
+      <div style={card}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ flex: 1 }}>
+            <p style={title}>Pengingat aktif 🔔</p>
+            <p style={desc}>Hanya dikirim bila ada yang personal untuk disampaikan.</p>
+          </div>
+          <button onClick={() => void disable()} disabled={busy} style={ghostBtn}>Matikan</button>
         </div>
-        <button onClick={() => void disable()} disabled={busy} style={ghostBtn}>Matikan</button>
+        {featureNotifPrefs() && (
+          <>
+            <button
+              type="button" onClick={() => setShowPrefs((v) => !v)} aria-expanded={showPrefs}
+              style={linkBtn}
+            >
+              {showPrefs ? "Tutup pengaturan jenis" : "Atur jenis pengingat"}
+            </button>
+            {showPrefs && <NotificationPrefsPanel />}
+          </>
+        )}
       </div>
     );
   }
@@ -87,6 +103,14 @@ const row: React.CSSProperties = {
   display: "flex", alignItems: "center", gap: 10,
   background: "var(--ah-surface-1)", border: "1px solid var(--ah-border)",
   borderRadius: "var(--ah-r-card)", padding: 14,
+};
+const card: React.CSSProperties = {
+  background: "var(--ah-surface-1)", border: "1px solid var(--ah-border)",
+  borderRadius: "var(--ah-r-card)", padding: 14,
+};
+const linkBtn: React.CSSProperties = {
+  marginTop: 8, minHeight: 36, padding: 0, border: "none", background: "transparent",
+  color: "var(--ah-purple)", fontSize: 12, fontWeight: 700, cursor: "pointer", textAlign: "left",
 };
 const title: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--ah-text-primary)" };
 const desc: React.CSSProperties = { fontSize: 11, color: "var(--ah-text-secondary)", lineHeight: 1.4 };
