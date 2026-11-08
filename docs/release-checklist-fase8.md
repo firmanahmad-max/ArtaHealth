@@ -94,5 +94,16 @@ mencabut izin notifikasi (perangkat otomatis `revoked`).
 
 **Matikan:** `npx supabase@2.117.0 secrets unset WEEKLY_PUSH --project-ref bawdoynqbwnxihnbgxfc` (tanpa redeploy).
 
+### 6b. Pengingat rentetan terancam (ikut deploy `send-reminders` yang sama)
+
+Pengingat kebiasaan yang sudah ada (pukul 18:00–21:59) berubah pesannya bila **rentetan ≥3 hari**
+dan **belum ada satu pun kebiasaan selesai hari ini**:
+*"Rentetan 5 hari menunggu hari ini 🔥 — Belum ada kebiasaan yang selesai hari ini. Selesaikan satu
+sebelum tidur agar rentetan 5 harimu berlanjut."*
+- Tetap jenis `habit` (sekali sehari) → **tidak menambah jumlah push**, tanpa migrasi, tanpa sakelar.
+- Rentetan dihitung dengan aturan yang sama dengan aplikasi (hari berturut-turut menyelesaikan kebiasaan).
+- Data rentetan hanya diambil bila bisa memengaruhi pesan (jendela 18–22, ada jadwal, belum ada yang selesai).
+- Aktif otomatis setelah `functions deploy send-reminders`.
+
 Referensi: `docs/roadmap-fase8.md`, `docs/release-checklist-v3.md`,
 `docs/release-checklist-backlog.md` (track V3 ter-blocked WR-2/SS-2/KC-2/LB-3).

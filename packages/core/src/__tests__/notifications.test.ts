@@ -7,6 +7,33 @@ const ctx = (over: Record<string, unknown> = {}) =>
 
 const at = (hour: number, over: Partial<ReminderOptions> = {}): ReminderOptions => ({ hour, ...over });
 
+describe("buildReminder — rentetan kebiasaan terancam", () => {
+  it("rentetan ≥3 & belum ada kebiasaan selesai → pesan rentetan (kind habit)", () => {
+    const r = buildReminder(ctx({ habits: { completed: 0, total: 2 } }), at(19, { habitStreak: 5 }))!;
+    expect(r.kind).toBe("habit");
+    expect(r.title).toBe("Rentetan 5 hari menunggu hari ini 🔥");
+    expect(r.body).toContain("rentetan 5 harimu");
+  });
+
+  it("satu kebiasaan sudah selesai → rentetan aman → pesan kebiasaan biasa", () => {
+    const r = buildReminder(ctx({ habits: { completed: 1, total: 2 } }), at(19, { habitStreak: 5 }))!;
+    expect(r.title).toBe("Tinggal satu kebiasaan");
+  });
+
+  it("rentetan < 3 → pesan kebiasaan biasa; tanpa jadwal kebiasaan hari ini → tak ada pesan rentetan", () => {
+    expect(buildReminder(ctx({ habits: { completed: 0, total: 2 } }), at(19, { habitStreak: 2 }))!.title)
+      .toBe("Tinggal 2 kebiasaan");
+    expect(buildReminder(ctx(), at(19, { habitStreak: 9 }))).toBeNull();
+  });
+
+  it("tetap hormati jam & dedup: sebelum 18:00, jam tenang, atau habit sudah terkirim → bukan pesan rentetan", () => {
+    const c = ctx({ habits: { completed: 0, total: 2 } });
+    expect(buildReminder(c, at(17, { habitStreak: 5 }))).toBeNull();
+    expect(buildReminder(c, at(22, { habitStreak: 5 }))).toBeNull();
+    expect(buildReminder(c, at(19, { habitStreak: 5, alreadySentToday: ["habit"] }))).toBeNull();
+  });
+});
+
 describe("buildReminder — push wajib personal atau tidak dikirim", () => {
   it("selalu memuat angka nyata milik user, bukan ajakan generik", () => {
     const r = buildReminder(ctx({ hydration: { totalMl: 800, targetMl: 2500, pct: 32 } }), at(15));
