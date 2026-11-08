@@ -71,11 +71,28 @@ ada di Dexie/Supabase. (Migrasi 0026 wearable sudah di-push sebelumnya; tak rele
   `git revert` PR terkait (#63 Fokus/Insight, #64 Katalog→Lemari, #65 Papan Poin→Gamification,
   #66 KR-3 sections, #67 KR-2) lalu redeploy. Risikonya rendah (murni presentasi/pengelompokan).
 
-## 6. Follow-up (tersandera backend = Firman)
+## 6. Follow-up — Push Ringkasan Mingguan (SUDAH DI KODE, Nov 2026)
 
-- **Push mingguan otomatis** — reuse engine `@arta/core weeklyRecap` untuk isi notifikasi via cron
-  (`send-reminders`) + kebijakan anti-spam. Bagian in-app (Ringkasan Mingguan) sudah siap jadi
-  tujuan tautannya.
+**Apa:** tiap **Minggu 19:00–20:59 waktu lokal** pengguna, satu push "📅 Ringkasan minggu ini" —
+hari aktif, jumlah catatan, rentetan, dan kalimat motivasi (mesin sama dgn kartu "Minggu Ini").
+- Engine: `packages/core/src/weekly-push.ts` (`weeklyMetrics`, `buildWeeklyPush`, `dayStreak`).
+- Server: blok mingguan di `supabase/functions/send-reminders` (cron per jam yang sudah jalan).
+- Dedup: `reminder_log` kind `weekly` (**migration 0030**) → sekali per minggu.
+
+**Anti-spam:** pengguna yang 2 minggu berturut-turut tanpa catatan **tidak** dikirimi; minggu lalu
+aktif tapi minggu ini kosong → satu ajakan lembut ("Minggu ini masih kosong…"); bila push mingguan
+terkirim, pengingat reguler di putaran cron itu dilewati. Pengguna berhenti menerima push dengan
+mencabut izin notifikasi (perangkat otomatis `revoked`).
+
+**Langkah menyalakan (Firman):**
+1. `npx supabase@2.117.0 db push` → migration **0030** (WAJIB dulu; tanpa ini klaim dedup ditolak → push tak terkirim).
+2. `npx supabase@2.117.0 functions deploy send-reminders --project-ref bawdoynqbwnxihnbgxfc`.
+   Aman: tanpa langkah 3, perilaku sama persis dgn sekarang (blok mingguan tak jalan).
+3. `npx supabase@2.117.0 secrets set WEEKLY_PUSH=1 --project-ref bawdoynqbwnxihnbgxfc` → aktif mulai Minggu berikutnya.
+4. Uji: Minggu malam setelah 19:00, cek HP yang berlangganan push; di SQL Editor:
+   `select profile_id, date from reminder_log where kind = 'weekly' order by date desc limit 10;`
+
+**Matikan:** `npx supabase@2.117.0 secrets unset WEEKLY_PUSH --project-ref bawdoynqbwnxihnbgxfc` (tanpa redeploy).
 
 Referensi: `docs/roadmap-fase8.md`, `docs/release-checklist-v3.md`,
 `docs/release-checklist-backlog.md` (track V3 ter-blocked WR-2/SS-2/KC-2/LB-3).
