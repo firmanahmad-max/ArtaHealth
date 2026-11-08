@@ -107,7 +107,7 @@ export function WearableCard() {
                   <div key={p.day} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}
                     title={`${dateLabel(p.day)}: ${p.value != null ? p.value.toLocaleString("id-ID") + " langkah" : "tak ada data"}`}>
                     <div style={{ width: "100%", height: Math.round(((p.value ?? 0) / stepsMax) * 34) + (p.value != null ? 4 : 2),
-                      background: p.value != null ? "var(--ah-accent)" : "var(--ah-border)", borderRadius: 3, opacity: p.value != null ? 1 : 0.5 }} />
+                      background: p.value != null ? "var(--ah-activity)" : "var(--ah-border)", borderRadius: 3, opacity: p.value != null ? 1 : 0.5 }} />
                     <span style={{ fontSize: 7.5, color: "var(--ah-text-tertiary)" }}>{new Date(`${p.day}T00:00:00`).getDate()}</span>
                   </div>
                 ))}

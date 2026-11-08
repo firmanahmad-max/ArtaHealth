@@ -71,7 +71,7 @@ export function MonthlyInsightCard({ onLog }: { onLog?: () => void } = {}) {
 
 const emptyCta: React.CSSProperties = {
   minHeight: 34, padding: "0 14px", borderRadius: "var(--ah-r-full)", border: "none", cursor: "pointer",
-  background: "var(--ah-accent)", color: "#fff", fontSize: 12, fontWeight: 700,
+  background: "var(--ah-gradient-hero)", color: "#fff", fontSize: 12, fontWeight: 700,
 };
 const card: React.CSSProperties = {
   background: "var(--ah-surface-1)", border: "1px solid var(--ah-border)",

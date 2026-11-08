@@ -83,5 +83,5 @@ const emptyBox: React.CSSProperties = {
 };
 const primaryBtn: React.CSSProperties = {
   minHeight: 40, borderRadius: "var(--ah-r-full)", border: "none", cursor: "pointer",
-  background: "var(--ah-accent)", color: "#fff", fontSize: 12.5, fontWeight: 700,
+  background: "var(--ah-gradient-hero)", color: "#fff", fontSize: 12.5, fontWeight: 700,
 };
