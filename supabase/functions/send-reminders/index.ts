@@ -26,6 +26,7 @@ import {
   buildWeeklyPush, weeklyMetrics, mondayOf, dayStreak,
   WEEKLY_PUSH_WEEKDAY, WEEKLY_PUSH_FROM_HOUR, WEEKLY_PUSH_UNTIL_HOUR,
 } from "../../../packages/core/src/weekly-push.ts";
+import { normalizeMuted, mutedKinds, isKindMuted } from "../../../packages/core/src/notification-prefs.ts";
 
 declare const Deno: {
   env: { get(name: string): string | undefined };
@@ -100,6 +101,16 @@ Deno.serve(async (req) => {
     .is("deleted_at", null);
   if (profilesErr) return json({ error: profilesErr.message }, 500);
 
+  // Kategori yang dibisukan per profil (migration 0031). Gagal/tabel belum ada → tak ada yang
+  // dibisukan (perilaku lama), jangan hentikan pengiriman.
+  const mutedBy = new Map<string, unknown>();
+  {
+    const { data: prefRows, error: prefsErr } = await supabase
+      .from("notification_prefs").select("profile_id, muted").in("profile_id", [...byProfile.keys()]);
+    if (prefsErr) console.error(`notification_prefs tak terbaca: ${prefsErr.message}`);
+    for (const r of (prefRows ?? []) as { profile_id: string; muted: unknown }[]) mutedBy.set(r.profile_id, r.muted);
+  }
+
   let sent = 0;
   let skipped = 0;
   const failures: string[] = [];
@@ -107,6 +118,7 @@ Deno.serve(async (req) => {
   for (const profile of profiles ?? []) {
     try {
       const tz = profile.timezone || "Asia/Jakarta";
+      const muted = normalizeMuted(mutedBy.get(profile.id));
       const hour = localHour(now, tz);
       const dateKey = localDateKey(now, tz);
       const { startUtc, endUtc } = utcRangeForLocalDate(dateKey, tz);
@@ -208,7 +220,7 @@ Deno.serve(async (req) => {
               ? { totalMl: context.hydration.totalMl, targetMl: context.hydration.targetMl }
               : undefined,
           });
-          if (sahur) {
+          if (sahur && !isKindMuted("sahur", muted)) {
             // klaim slot dedup 'sahur' lebih dulu (sekali per hari per profil)
             const { error: sahurClaim } = await supabase.from("reminder_log")
               .insert({ profile_id: profile.id, date: dateKey, kind: "sahur" });
@@ -245,7 +257,7 @@ Deno.serve(async (req) => {
               ? { totalMl: context.hydration.totalMl, targetMl: context.hydration.targetMl }
               : undefined,
           });
-          if (iftar) {
+          if (iftar && !isKindMuted("iftar", muted)) {
             const { error: iftarClaim } = await supabase.from("reminder_log")
               .insert({ profile_id: profile.id, date: dateKey, kind: "iftar" });
             if (!iftarClaim) {
@@ -280,7 +292,7 @@ Deno.serve(async (req) => {
       // Hanya bila secret WEEKLY_PUSH=1 (sakelar tanpa redeploy). Sekali per minggu via dedup
       // reminder_log kind 'weekly'. Anti-spam di mesin core (2 minggu sepi → tak dikirim).
       // Bila terkirim, pengingat reguler di putaran ini dilewati (maks. 1 push per putaran).
-      if (weeklyPushOn && isoWeekdayOf(dateKey) === WEEKLY_PUSH_WEEKDAY &&
+      if (weeklyPushOn && !isKindMuted("weekly", muted) && isoWeekdayOf(dateKey) === WEEKLY_PUSH_WEEKDAY &&
           hour >= WEEKLY_PUSH_FROM_HOUR && hour < WEEKLY_PUSH_UNTIL_HOUR) {
         try {
           const lastMon = new Date(`${mondayOf(dateKey)}T12:00:00Z`);
@@ -338,7 +350,8 @@ Deno.serve(async (req) => {
       // belum ada yang selesai, 'habit' belum terkirim) → tak ada query tambahan di jam lain.
       const sentKinds = rows<{ kind: ReminderKind }>(alreadySent).map((r) => r.kind);
       let habitStreak = 0;
-      if (hour >= 18 && hour < 22 && scheduled.length > 0 && done.size === 0 && !sentKinds.includes("habit")) {
+      if (hour >= 18 && hour < 22 && scheduled.length > 0 && done.size === 0 &&
+          !sentKinds.includes("habit") && !isKindMuted("habit", muted)) {
         try {
           const { data: comp } = await supabase.from("habit_completions").select("date")
             .eq("profile_id", profile.id).is("deleted_at", null);
@@ -348,7 +361,9 @@ Deno.serve(async (req) => {
         }
       }
 
-      const reminder = buildReminder(context, { hour, alreadySentToday: sentKinds, habitStreak });
+      const reminder = buildReminder(context, {
+        hour, alreadySentToday: sentKinds, habitStreak, mutedKinds: mutedKinds(muted),
+      });
       if (!reminder) { skipped++; continue; }
 
       // klaim slot dedup LEBIH DULU: kalau baris sudah ada, profil ini dilewati

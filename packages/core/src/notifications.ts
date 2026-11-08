@@ -36,6 +36,11 @@ export interface ReminderOptions {
    * berubah menjadi pesan "rentetan menunggu" (tetap kind 'habit' → tak menambah jumlah push).
    */
   habitStreak?: number;
+  /**
+   * Kategori yang dibisukan pengguna (lihat notification-prefs.ts `mutedKinds`). Diperlakukan
+   * seperti "sudah terkirim" → mesin beralih ke kategori berikutnya yang masih relevan.
+   */
+  mutedKinds?: readonly string[];
 }
 
 /** Rentetan minimum agar pengingat kebiasaan memakai pesan rentetan. */
@@ -56,7 +61,7 @@ export function buildReminder(ctx: InsightContext, opts: ReminderOptions): Remin
   const { hour, alreadySentToday = [], quietFromHour = 22, quietUntilHour = 7 } = opts;
   if (inQuietHours(hour, quietFromHour, quietUntilHour)) return null;
 
-  const sent = new Set(alreadySentToday);
+  const sent = new Set<string>([...alreadySentToday, ...(opts.mutedKinds ?? [])]);
 
   // 1) Hidrasi — paling actionable, dikirim sore saat masih sempat dikejar
   if (!sent.has("hydration") && ctx.hydration && hour >= 14 && hour < 19) {

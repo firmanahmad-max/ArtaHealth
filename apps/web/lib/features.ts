@@ -237,6 +237,15 @@ export const featureWeeklyRecap = (): boolean =>
   process.env.NEXT_PUBLIC_FEATURE_WEEKLY_RECAP === "1";
 
 /**
+ * Atur jenis pengingat (Fase 8 · tindak lanjut retensi). Default OFF. Saat pengingat aktif, pengguna
+ * bisa membisukan kategori tertentu (minum/kebiasaan/tidur/mingguan/sahur-berbuka) tanpa mencabut
+ * izin notifikasi. Butuh migration 0031 + deploy send-reminders SEBELUM dinyalakan.
+ * Dev: set NEXT_PUBLIC_FEATURE_NOTIF_PREFS=1 di .env.local.
+ */
+export const featureNotifPrefs = (): boolean =>
+  process.env.NEXT_PUBLIC_FEATURE_NOTIF_PREFS === "1";
+
+/**
  * "Apa Baru" (Fase 8 · KR-4). Default OFF. Kartu dismissible yang memperkenalkan fitur yang baru
  * dinyalakan ke pengguna lama; hanya menampilkan entri yang flag-nya aktif; disembunyikan permanen
  * setelah "Mengerti" (localStorage per-versi). Non-medis. Dev: set NEXT_PUBLIC_FEATURE_WHATSNEW=1.
