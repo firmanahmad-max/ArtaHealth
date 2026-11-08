@@ -22,6 +22,10 @@ import {
   localDateKey, localHour, localMinuteOfDay, tzOffsetMinutes, utcRangeForLocalDate,
 } from "../../../packages/core/src/timezone.ts";
 import type { InsightContext } from "../../../packages/core/src/ai/contracts.ts";
+import {
+  buildWeeklyPush, weeklyMetrics, mondayOf,
+  WEEKLY_PUSH_WEEKDAY, WEEKLY_PUSH_FROM_HOUR, WEEKLY_PUSH_UNTIL_HOUR,
+} from "../../../packages/core/src/weekly-push.ts";
 
 declare const Deno: {
   env: { get(name: string): string | undefined };
@@ -48,6 +52,8 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
   const now = new Date();
+  // Push Ringkasan Mingguan: sakelar via secret (`supabase secrets set WEEKLY_PUSH=1`), tanpa redeploy.
+  const weeklyPushOn = Deno.env.get("WEEKLY_PUSH") === "1";
 
   // hanya profil yang punya perangkat aktif — sisanya tidak perlu dihitung
   const { data: devices, error: devicesErr } = await supabase
@@ -268,6 +274,64 @@ Deno.serve(async (req) => {
         }
       } catch (e) {
         console.error(`sahur gagal profil ${profile.id}: ${(e as Error).message}`);
+      }
+
+      // ── Push Ringkasan Mingguan (Minggu 19:00–20:59 lokal) ──────────────
+      // Hanya bila secret WEEKLY_PUSH=1 (sakelar tanpa redeploy). Sekali per minggu via dedup
+      // reminder_log kind 'weekly'. Anti-spam di mesin core (2 minggu sepi → tak dikirim).
+      // Bila terkirim, pengingat reguler di putaran ini dilewati (maks. 1 push per putaran).
+      if (weeklyPushOn && isoWeekdayOf(dateKey) === WEEKLY_PUSH_WEEKDAY &&
+          hour >= WEEKLY_PUSH_FROM_HOUR && hour < WEEKLY_PUSH_UNTIL_HOUR) {
+        try {
+          const lastMon = new Date(`${mondayOf(dateKey)}T12:00:00Z`);
+          lastMon.setUTCDate(lastMon.getUTCDate() - 7);
+          const fromIso = utcRangeForLocalDate(lastMon.toISOString().slice(0, 10), tz).startUtc.toISOString();
+          const since = (table: string, col: string) =>
+            supabase.from(table).select(col).eq("profile_id", profile.id)
+              .is("deleted_at", null).gte(col, fromIso).lt(col, endIso);
+          const [wh, ws, wm, wa, ww, wf, wc] = await Promise.all([
+            since("hydration_logs", "logged_at"), since("sleep_logs", "sleep_start"),
+            since("mood_logs", "logged_at"), since("activity_logs", "logged_at"),
+            since("weight_logs", "logged_at"), since("food_logs", "logged_at"),
+            supabase.from("habit_completions").select("date").eq("profile_id", profile.id).is("deleted_at", null),
+          ]);
+          const localDays = (res: { data: unknown }, col: string): string[] =>
+            rows<Record<string, string>>(res).map((r) => localDateKey(new Date(r[col]!), tz));
+          const completionDays = rows<{ date: string }>(wc).map((r) => r.date);
+          const logDays = [
+            ...localDays(wh, "logged_at"), ...localDays(ws, "sleep_start"), ...localDays(wm, "logged_at"),
+            ...localDays(wa, "logged_at"), ...localDays(ww, "logged_at"), ...localDays(wf, "logged_at"),
+            ...completionDays,
+          ];
+          const weekly = buildWeeklyPush(weeklyMetrics(logDays, completionDays, dateKey), { todayKey: dateKey, hour });
+          if (weekly) {
+            const { error: weeklyClaim } = await supabase.from("reminder_log")
+              .insert({ profile_id: profile.id, date: dateKey, kind: "weekly" });
+            if (!weeklyClaim) {
+              const payload = JSON.stringify({ title: weekly.title, body: weekly.body, url: weekly.url, kind: weekly.kind });
+              for (const device of byProfile.get(profile.id) ?? []) {
+                try {
+                  await webpush.sendNotification(
+                    { endpoint: device.endpoint, keys: { p256dh: device.p256dh, auth: device.auth } },
+                    payload,
+                  );
+                  sent++;
+                  await supabase.from("push_devices")
+                    .update({ last_used_at: new Date().toISOString() }).eq("id", device.id);
+                } catch (e) {
+                  const status = (e as { statusCode?: number }).statusCode;
+                  if (status === 404 || status === 410) {
+                    await supabase.from("push_devices")
+                      .update({ revoked_at: new Date().toISOString() }).eq("id", device.id);
+                  }
+                }
+              }
+              continue; // maks. 1 push per putaran
+            }
+          }
+        } catch (e) {
+          console.error(`weekly gagal profil ${profile.id}: ${(e as Error).message}`);
+        }
       }
 
       const reminder = buildReminder(context, {
