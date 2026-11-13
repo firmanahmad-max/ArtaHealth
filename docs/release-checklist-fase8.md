@@ -20,6 +20,7 @@ redeploy Vercel**.
 | **Katalog → Lemari** (konsolidasi #1) | perbaikan | `CATALOG` jadi **dorman** | **redeploy saja** + boleh matikan CATALOG |
 | **Papan Poin → Petualangan Sehat** (#2a) | perbaikan | `LEADERBOARD` kini butuh `GAMIFICATION` | **redeploy saja** |
 | **Fokus ⟷ Insight anti-dobel** (PR #63) | perbaikan | — | **redeploy saja** |
+| **Tab "Fitur"** (Nov 2026): Beranda = loop harian; semua kartu fitur pindah ke `/fitur` (grid pintasan + bagian Kesehatan/Alat & Data); tab Profil mati diganti | perbaikan | — | **redeploy saja**; rollback = `git revert` PR #89 |
 
 > ⚠️ Perubahan tanpa-flag (KR-2/KR-3 + semua konsolidasi) sudah di `main` tapi **belum live** —
 > ter-merge SETELAH redeploy terakhirmu. **Satu redeploy** membuat semuanya aktif sekaligus.
