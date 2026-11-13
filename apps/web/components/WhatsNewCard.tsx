@@ -31,6 +31,11 @@ const ENTRIES: Entry[] = [
       : "Ringkasan tiap Minggu malam & kabar saat rentetanmu terancam — aktifkan di kartu Pengingat.",
     on: () => true,
   },
+  {
+    id: "tab-fitur", since: "2026-11", icon: "🧭", title: "Tab Fitur baru",
+    blurb: "Semua alat kesehatan kini rapi di tab Fitur (kanan bawah) — Beranda jadi ringkas.",
+    on: () => true,
+  },
   // Musim Ramadan 2027 — muncul otomatis begitu flag musimannya dinyalakan.
   { id: "ramadan-readiness", since: "2027-02", icon: "🌙", title: "Menuju Ramadan", blurb: "Hitung mundur & checklist persiapan puasa.", on: () => featureRamadan() && featureRamadanReadiness() },
   { id: "ramadan-menu", since: "2027-02", icon: "🍽️", title: "Menu Sahur & Berbuka", blurb: "Ide menu harian yang menyesuaikan kondisi kesehatanmu.", on: () => featureRamadan() && featureRamadanMenu() },

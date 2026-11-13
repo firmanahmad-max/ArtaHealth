@@ -12,9 +12,7 @@ import { AppNav } from "@/components/AppNav";
 import { HabitCard } from "@/components/HabitCard";
 import { InsightCard } from "@/components/InsightCard";
 import { PushToggle } from "@/components/PushToggle";
-import { RiskPanelCard } from "@/components/RiskPanelCard";
 import { TodayFocusCard } from "@/components/TodayFocusCard";
-import { DashboardSection } from "@/components/DashboardSection";
 import { WhatsNewCard } from "@/components/WhatsNewCard";
 import { PaketRamadanInterestCard } from "@/components/PaketRamadanInterestCard";
 import { WeeklyRecapCard } from "@/components/WeeklyRecapCard";
@@ -29,27 +27,7 @@ import { RamadanReadinessCard } from "@/components/RamadanReadinessCard";
 import { PreRamadanMedicalCard } from "@/components/PreRamadanMedicalCard";
 import { RamadanSetupCard } from "@/components/RamadanSetupCard";
 import { SunnahScheduleCard } from "@/components/SunnahScheduleCard";
-import { MedicationCard } from "@/components/MedicationCard";
-import { NutritionScanCard } from "@/components/NutritionScanCard";
-import { AllergyCard } from "@/components/AllergyCard";
-import { EaterCard } from "@/components/EaterCard";
-import { FoodDiaryCard } from "@/components/FoodDiaryCard";
-import { MenuPlannerCard } from "@/components/MenuPlannerCard";
-import { VaultCard } from "@/components/VaultCard";
-import { FamilyCard } from "@/components/FamilyCard";
-import { GamificationCard } from "@/components/GamificationCard";
-import { EarlyWarningCard } from "@/components/EarlyWarningCard";
-import { PulseCheckCard } from "@/components/PulseCheckCard";
-import { ConsultationReportCard } from "@/components/ConsultationReportCard";
-import { WhatIfCard } from "@/components/WhatIfCard";
-import { MonthlyInsightCard } from "@/components/MonthlyInsightCard";
-import { ImmunizationCard } from "@/components/ImmunizationCard";
-import { CycleCard } from "@/components/CycleCard";
-import { ClaimCheckCard } from "@/components/ClaimCheckCard";
-import { RadarSehatCard } from "@/components/RadarSehatCard";
-import { WearableCard } from "@/components/WearableCard";
-import { SatuSehatCard } from "@/components/SatuSehatCard";
-import { featureBiomarker, featureRamadan, featureMedication, featureNutrition, featureFoodDiary, featureVault, featureFamily, featureGamification, featureEarlyWarning, featureRppg, featureConsultation, featureWhatIf, featureMonthlyInsight, featureImmunization, featureCycle, featureCekKlaim, featureRadar, featureWearable, featureSatuSehat, featureFocus, featureWhatsNew, featureWeeklyRecap, featureRamadanWrapped, featureRamadanReadiness, featurePaketInterest, featureFastingReport, featureRamadanMenu } from "@/lib/features";
+import { featureRamadan, featureFocus, featureWhatsNew, featureWeeklyRecap, featureRamadanWrapped, featureRamadanReadiness, featurePaketInterest, featureFastingReport, featureRamadanMenu } from "@/lib/features";
 import { isScheduledOn, isoWeekdayOf } from "@arta/core";
 import { todayKey } from "@/lib/habits";
 import { isFastingToday } from "@/lib/fasting";
@@ -172,34 +150,6 @@ export default function Dashboard() {
   const latestMood = inputs.mood;
   const pending = (t: string) => (pendingTables?.has(t as never) ?? false) && syncEnabled;
 
-  // KR-3: kelompokkan kartu berfitur ke bagian berlabel. Kondisi flag & isi kartu tak berubah;
-  // hanya pengelompokan + urutan. "Alat & Data" (sekunder) bisa dilipat untuk memangkas scroll.
-  const kesehatanCards = [
-    featureBiomarker() && <RiskPanelCard key="risk" onLog={() => setSheetOpen(true)} />,
-    featureEarlyWarning() && <EarlyWarningCard key="ew" />,
-    featureMonthlyInsight() && <MonthlyInsightCard key="monthly" onLog={() => setSheetOpen(true)} />,
-    featureWhatIf() && <WhatIfCard key="whatif" onLog={() => setSheetOpen(true)} />,
-    featureRppg() && <PulseCheckCard key="rppg" />,
-    featureCycle() && <CycleCard key="cycle" />,
-    featureImmunization() && <ImmunizationCard key="imm" />,
-    featureVault() && <VaultCard key="vault" />,
-    featureMedication() && <MedicationCard key="med" />,
-    featureNutrition() && <AllergyCard key="allergy" />,
-    featureNutrition() && <EaterCard key="eater" />,
-    featureNutrition() && <NutritionScanCard key="nutriscan" />,
-    featureFoodDiary() && <FoodDiaryCard key="food" />,
-    featureFoodDiary() && <MenuPlannerCard key="menu" />,
-    featureConsultation() && <ConsultationReportCard key="consult" />,
-    featureCekKlaim() && <ClaimCheckCard key="claim" />,
-  ].filter(Boolean);
-  const alatCards = [
-    featureRadar() && <RadarSehatCard key="radar" />,
-    featureWearable() && <WearableCard key="wearable" />,
-    featureSatuSehat() && <SatuSehatCard key="satusehat" />,
-    featureFamily() && <FamilyCard key="family" />,
-    featureGamification() && <GamificationCard key="gami" />,
-  ].filter(Boolean);
-
   return (
     <>
       <main style={{ maxWidth: 400, margin: "0 auto", padding: "16px 16px 96px", display: "flex", flexDirection: "column", gap: 12 }}>
@@ -307,18 +257,6 @@ export default function Dashboard() {
         <HabitCard />
 
         {featureWeeklyRecap() && <WeeklyRecapCard />}
-
-        {kesehatanCards.length > 0 && (
-          <DashboardSection title="Kesehatan" count={kesehatanCards.length}>
-            {kesehatanCards}
-          </DashboardSection>
-        )}
-
-        {alatCards.length > 0 && (
-          <DashboardSection title="Alat & Data" count={alatCards.length} collapsible defaultCollapsed storageKey="ah-sec-alat">
-            {alatCards}
-          </DashboardSection>
-        )}
 
         <PushToggle />
       </main>
